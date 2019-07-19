@@ -12,13 +12,16 @@ layui.use(['layer'], function(){
             async:false,
             datatype:"json",
             success:function (data) {
+                var serviceName=data.serviceName.toUpperCase()+"微服务";
+                var controllerList=data.controllerList;
+                $("#servicename").text(serviceName);
                 $("#controllerlist").empty();
                 var $controllercontainer=$("#controllercontainer");
-                for(var i in data){
+                for(var i in controllerList){
                     var $newControllerContainer=$controllercontainer.clone();
-                    $newControllerContainer.find(".contentLeft").text(data[i].url);
-                    $newControllerContainer.find(".contentRight").text(data[i].comment);
-                    $newControllerContainer.attr("classpath",data[i].classPath);
+                    $newControllerContainer.find(".contentLeft").text(controllerList[i].url);
+                    $newControllerContainer.find(".contentRight").text(controllerList[i].comment);
+                    $newControllerContainer.attr("classpath",controllerList[i].classPath);
                     $newControllerContainer.show();
                     $("#controllerlist").append($newControllerContainer);
                 }
