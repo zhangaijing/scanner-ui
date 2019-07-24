@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>微服务选择</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <style>
+        .content{
+            width:600px;
+            border:0px solid blue;
+            padding:10px;
+        }
+        .ip-content{
+            letter-spacing:1px;
+            font-size:16px;
+        }
+        .ip-input{
+            border:0px;border-bottom:1px solid #009688;
+            width:30px;
+            height:24px;
+            font-size:16px;
+        }
+        .service-content{
+            margin-top:10px;
+            padding-top:6px;
+            letter-spacing:1px;
+            font-size:16px;
+        }
+        .service-title{
+            float:left;
+            font-size:16px;
+        }
+        .servicename-content{
+            float:left;
+            width:86%;
+            border:0px solid green;
+        }
+        .service{
+            border-radius:3px;
+            background-color:#FF5722;
+            padding:3px 5px;
+            height:20px;
+            color:#fbf5f5;
+            margin-right:10px;
+            transition: all 0s ease-in-out;
+            cursor:pointer;
+            display:inline-block;
+            margin-bottom:6px;
+            width : auto;
+        }
+        .serviceactive{
+            background-color:#1E9FFF
+        }
+        .service:hover {
+            -webkit-transform: scale(1.1);
+            -ms-transform: scale(1.1);
+            transform: scale(1.1);
+            zoom: 1.1;
+            -webkit-transform-origin:30% 40%;
+        }
+        .service-model{
+            display:none;
+        }
+    </style>
+</head>
+<body style="margin:0px;background:#f9f9f9">
+    <div class="content">
+        <div class="ip-content">
+            <span>连接地址：</span><span>192.168.1.</span><span><input type="text" id="ip" class="ip-input"/></span>
+        </div>
+        <div class="service-content">
+            <div class="service-title">微服务：</div>
+            <div class="servicename-content" id="servicenamecontent">
+                <span class="service">hoolink-rpc</span>
+                <span class="service serviceactive">hoolink-base</span>
+                <span class="service">hoolink-device</span>
+            </div>
+        </div>
+    </div>
+
+    <!--微服务名模板 start-->
+    <span class="service service-model" id="servicenamemodel"></span>
+    <!--微服务名模板 end-->
+</body>
+<script src="/layui/layui.js"></script>
+<script src="/json.js"></script>
+<script src="/selectservice.js"></script>
+</html>
