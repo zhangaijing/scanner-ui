@@ -147,6 +147,10 @@
             opacity:0;
             display:none;
         }
+        .postman-btn{
+            margin-left:50px;
+            background-color:#2882a2!important;
+        }
     </style>
 </head>
 <body>
@@ -186,7 +190,11 @@
             <span class="contentRight v-align controller right-color" id="methodcommentcontainer">备注信息</span>
         </div>
         <div class="inline-content" id="methodinlinecontainer">
-            <div class="url-content"><span class="param-text">请求地址：</span><span class="url-text" id="methodfullurlcontainer"></span></div>
+            <div class="url-content">
+                <span class="param-text">请求地址：</span>
+                <span class="url-text" id="methodfullurlcontainer"></span>
+                <span><input type="button" class="layui-btn layui-btn-sm postman-btn" value="Postman"/></span>
+            </div>
             <div>
                 <div class="param-content">
                     <div>
@@ -230,4 +238,5 @@
 <script src="/layui/layui.js"></script>
 <script src="/layui/clipboard.min.js"></script>
 <script src="/index.js"></script>
+<script src="/match.js"></script>
 </html>

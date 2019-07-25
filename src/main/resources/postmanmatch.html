@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Postman匹配</title>
+    <link rel="stylesheet" href="/layui/css/layui.css"  media="all">
+    <style>
+
+        .type-match{
+            background:#f9f9f9;
+            border:0px!important;
+            padding-top:10px!important;
+        }
+        .copy-btn-content{
+            margin-left:30px;
+        }
+        .data-content{
+            clear:both;
+            margin-top:12px;
+        }
+        .json-title{
+            float:left;
+            padding-left: 13px;
+        }
+        .json-content{
+            float:left;
+            margin-left:15px;
+        }
+        .json-textarea{
+            width:360px;
+            height:360px;
+            padding:6px;
+            resize:none;
+        }
+    </style>
+</head>
+<body style="margin:0px;background:#f9f9f9;font-size:16px;padding-top:10px">
+    <form class="layui-form layui-form-pane">
+        <div class="content">
+            <div class="style-content">
+                <span><label class="layui-form-label type-match">匹配类型：</label></span>
+                <span><input type="radio" name="matchtype" value="auto" title="自动" checked=""></span>
+                <span><input type="radio" name="matchtype" value="request" title="请求"></span>
+                <span><input type="radio" name="matchtype" value="response" title="响应"></span>
+                <span class="copy-btn-content"><input type="button" name="matchtype" class="layui-btn layui-btn-danger layui-btn-sm copy-btn" value="一键复制"></span>
+            </div>
+            <div class="data-content">
+                <div class="json-title">JSON数据：</div>
+                <div class="json-content" id="postmandata">
+                    <textarea class="json-textarea" id="postmancontent"></textarea>
+                </div>
+            </div>
+        </div>
+    </form>
+</body>
+<script src="/layui/layui.js"></script>
+<script src="/layui/clipboard.min.js"></script>
+<script src="/postmanmatch.js"></script>
+</html>
