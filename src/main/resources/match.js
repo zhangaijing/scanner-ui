@@ -246,11 +246,7 @@ layui.use(['form','layer', 'element'],function() {
             return false;
         }
     }
-
-
-
-
-
+    
     /**
      * postman匹配后复制到剪贴板
      */

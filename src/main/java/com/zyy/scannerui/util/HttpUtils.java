@@ -17,6 +17,7 @@ import org.springframework.util.StringUtils;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
+import com.zyy.scannerui.model.TransParamVO;
 import com.zyy.scannerui.model.param.ControllerParamVO;
 import com.zyy.scannerui.model.param.MethodParamVO;
 
@@ -74,6 +75,9 @@ public class HttpUtils {
         }else if(flag.equals(METHOD_FLAG)){
             MethodParamVO methodParam=(MethodParamVO) param;
             paramStr="methodUrl="+methodParam.getMethodUrl();
+        }else{
+            TransParamVO transParam=(TransParamVO) param;
+            paramStr="search="+transParam.getSearch();
         }
         return paramStr;
     }

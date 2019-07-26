@@ -15,4 +15,7 @@ public class TransParamVO {
 
     /*** 目标主机端口号 */
     private String port;
+
+    /*** URL过滤条件 */
+    private String search;
 }

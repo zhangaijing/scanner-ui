@@ -3,17 +3,59 @@ layui.use(['layer','element'], function(){
         ,element = layui.element
         ,layer=layui.layer;
 
+    var  isLoadController=false;
+
     //定时器ID
     var intervalId;
 
     /**
-     * 页面初始化处理
+     * 导航单击事件
      */
-    var initPage=function(){
+    element.on('nav(changeMenu)',function(elem){
+        var id=$(this).attr("id");
+        $("#sqlToMybatis").addClass("tab-hide");
+        $("#mybatisToSql").addClass("tab-hide");
+        $("#scannerPackage").addClass("tab-hide");
+        if(id=="toMybatisNav"){
+            $("#sqlToMybatis").removeClass("tab-hide");
+        }else if(id=="toSqlNav"){
+            $("#mybatisToSql").removeClass("tab-hide");
+        }else if(id=="toScannerNav"){
+            $("#scannerPackage").removeClass("tab-hide");
+            loadController();
+        }else if(id=="servicename"){
+            $("#scannerPackage").removeClass("tab-hide");
+            loadController();
+            if(isLoadController){
+                //弹出微服务选择框
+                showServiceDlg();
+            }
+        }
+    });
+
+    /**
+     * 搜索按钮单击事件
+     */
+    $("#searchbtn").click(function(){
+        isLoadController=false;
+        loadController();
+    });
+
+    /**
+     * 包Controller扫描加载
+     */
+    var loadController=function(){
+        if(isLoadController){
+            $("#scannerPackage").removeClass("tab-hide")
+            return;
+        }
         var jsonData=buildJson();
         if(!jsonData){
             return;
         }
+        var searchVal=$("#urlinput").val();
+        searchVal=$.trim(searchVal);
+        jsonData.search=searchVal;
         showLoad();
         $.ajax({
             type: 'POST',
@@ -24,7 +66,7 @@ layui.use(['layer','element'], function(){
             success:function (data) {
                 hideLoad();
                 if(data){
-                    var serviceName=data.serviceName.toUpperCase()+"微服务";
+                    var serviceName=data.serviceName.toUpperCase();
                     var controllerList=data.controllerList;
                     $("#servicename").text(serviceName);
                     $("#controllerlist").empty();
@@ -44,9 +86,12 @@ layui.use(['layer','element'], function(){
                         $newControllerContainer.show();
                         $("#controllerlist").append($newControllerContainer);
                     }
+                }else{
+                    layer.msg("数据获取异常！",{icon:6});
                 }
+                isLoadController=true;
             },
-            error:function(data){
+            error:function(){
                 layer.alert("数据获取失败！");
                 hideLoad();
             }
@@ -54,7 +99,7 @@ layui.use(['layer','element'], function(){
     }
 
     /**
-     * controlleURL点击事件
+     * controlleURL单击事件
      */
     $("#controllerlist").on("click",".mouse",function(){
         $(".mouse").removeClass("mouse-click");
@@ -87,6 +132,8 @@ layui.use(['layer','element'], function(){
                         $newMethodContainer.show();
                         $("#methodlist").append($newMethodContainer);
                     }
+                }else{
+                    layer.msg("数据获取异常！",{icon:6});
                 }
             },
             error:function(){
@@ -127,6 +174,8 @@ layui.use(['layer','element'], function(){
                         $request.text(data.paramJson);
                         var $response=$inlineContent.find(".response-param");
                         $response.text(data.returnJson);
+                    }else{
+                        layer.msg("数据获取异常！",{icon:6});
                     }
                 },
                 error:function(){
@@ -137,13 +186,6 @@ layui.use(['layer','element'], function(){
         }else{
             $inlineContent.hide();
         }
-    });
-
-    /**
-     * 微服务选择弹出框单击事件
-     */
-    $("#servicedialogbtn").click(function(){
-        showServiceDlg();
     });
 
     /**
@@ -193,10 +235,10 @@ layui.use(['layer','element'], function(){
     /**
      * 显示微服务选择框
      */
-    var showServiceDlg=function(){
+    var showServiceDlg=function(optType){
         var storeIp=window.localStorage.getItem("ip");
-        var storePort=window.localStorage.getItem("port");
-        if(storeIp && storePort){
+        var storePort=window.localStorage.getItem("servicePort");
+        if(storeIp && storePort && optType){
             return;
         }
         layer.open({
@@ -204,7 +246,7 @@ layui.use(['layer','element'], function(){
             "type":2,
             "content":"/selectservice.html",
             "scrollbar": false,
-            "area":['650px','auto'],
+            "area":['650px','290px'],
             "btn":["确定","取消"],
             "yes":function(index, layero){
                 var $serviceContent=layero;
@@ -220,7 +262,11 @@ layui.use(['layer','element'], function(){
                 window.localStorage.setItem("servicePort",servicePort);
                 layer.closeAll();
                 //重新加载页面数据
-                initPage();
+                if(storeIp!=ipVal||storePort!=servicePort){
+                    isLoadController=false;
+                }
+                $("#urlinput").val("");
+                loadController();
             },
             "btn2":function(){
                 layer.closeAll();
@@ -233,7 +279,8 @@ layui.use(['layer','element'], function(){
      */
     var showLoad=function(n) {
         $("#mask").show();
-        $("#loadcontent").show();
+        //$("#loadcontent").show();
+        $("#loadcontent").removeClass("tab-hide");
         if(!n){
             n=0;
         }else{
@@ -256,7 +303,8 @@ layui.use(['layer','element'], function(){
         clearInterval(intervalId);
         element.progress('load', 100+'%');
         var t = window.setTimeout(function(){
-            $("#loadcontent").hide();
+            //$("#loadcontent").hide();
+            $("#loadcontent").addClass("tab-hide");
             $("#mask").hide();
             element.progress('load', 0+'%');
         },10);
@@ -275,7 +323,7 @@ layui.use(['layer','element'], function(){
             return jsonData;
         }else{
             hideLoad();
-            showServiceDlg();
+            showServiceDlg(1);
         }
     }
 
@@ -296,10 +344,4 @@ layui.use(['layer','element'], function(){
         return author;
     }
 
-    /**
-     * 页面初始化
-     */
-    $(document).ready(function(){
-        initPage();
-    });
 });

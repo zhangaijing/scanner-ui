@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title>开发辅助工具</title>
+    <link href="layui/css/layui.css" rel="stylesheet" />
+    <style>
+
+        .tab-hide{
+            display:none!important;
+        }
+
+        .inline-input{
+            display:inline;
+        }
+        .left-area{
+            margin-right:25px;
+        }
+        .right-area{
+            width:46%;
+        }
+        .text-area{
+            border-color:#c6c6c6;
+            width:100%;
+            border-radius:2px;
+            padding:3px;
+        }
+        .bean-div{
+            border:1px solid #63BA79;
+            min-height:50px;
+            width:100%;
+            border-radius:2px;
+            padding:5px;
+        }
+    </style>
+</head>
+<body style="background-color: #eee;">
+    <div>
+        <ul class="layui-nav" lay-filter="changeMenu">
+            <li class="layui-nav-item layui-this"><a href="javascript:void(0)" id="toMybatisNav">SQL转Mybatis</a></li>
+            <li class="layui-nav-item"><a href="javascript:void(0)" id="toSqlNav">Mybatis转SQL</a></li>
+        </ul>
+    </div>
+
+    <!--sql转mybatis start-->
+    <div id="sqlToMybatis">
+        <div style="margin-top:20px;margin-left:20px;font-size:16px">
+            <div style="margin-bottom:15px">
+                <span>SQL语句ID：</span>
+                <span><input type="text" id="sqlId" style="width:300px" class="layui-input inline-input"/></span>
+                <span style="margin-left:35px">方法参数对象名：</span>
+                <span><input type="text" name="sqlParaName" id="sqlParaName" style="width:300px" class="layui-input inline-input"></span>
+                <span style="margin-left:40px"><input type="button" style="margin-left:20px" value="SQL转Mybatis" id="toMybatisBtn"  class="layui-btn"/></span>
+            </div>
+            <div class="layui-row">
+                <div class="layui-col-md6 left-area">
+                    <div style="font-size:18px">SQL：</div>
+                    <textarea type="text" name="" id="sqlText" rows="20" class="text-area"></textarea>
+                </div>
+                <div class="layui-col-md5 right-area">
+                    <div style="font-size:18px">Mybatis：</div>
+                    <textarea rows="20"   class="text-area" id="mybatisText" readonly></textarea>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top:20px;margin-left:20px;font-size:16px;display:none" id="beanDiv">
+            <div class="layui-row">
+                <div class="layui-col-md6 left-area">
+                    <div style="font-size:18px">WHERE条件实体类：</div>
+                    <div type="text" id="whereBean" class="bean-div">dd</div>
+                </div>
+                <div  class="layui-col-md5 right-area">
+                    <div style="font-size:18px">结果集实体类：</div>
+                    <div rows="20"  id="resultBean" class="bean-div">dd</div>
+                </div>
+            </div>
+            <div class="layui-row" style="margin-top:20px;margin-bottom:10px">
+                <div class="layui-col-md12 left-area">
+                    <div style="font-size:18px">调用方法：</div>
+                    <div type="text" id="callMethod" class="bean-div" style="width:97.8%">dd</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!--sql转mybatis end-->
+
+    <!--mybatis转sql start-->
+    <div id="mybatisToSql" style="display:none">
+        <div style="margin-top:20px;margin-left:20px;font-size:16px">
+            <div style="margin-bottom:15px">
+                <span>参数值：</span>
+                <span><input type="text" id="mybatisParamVals" style="width:800px" class="layui-input inline-input"/></span>
+                <span style="margin-left:40px"><input type="button" style="margin-left:20px" value="Mybatis转SQL" id="toSqlBtn"  class="layui-btn"/></span>
+            </div>
+            <div class="layui-row">
+                <div class="layui-col-md6 left-area">
+                    <div style="font-size:18px">MybatisSQL：</div>
+                    <textarea type="text" name="" id="mybatisSqlText" rows="20" class="textarea"></textarea>
+                </div>
+                <div class="layui-col-md5 right-area">
+                    <div style="font-size:18px">RealSQL：</div>
+                    <textarea rows="20"   class="text-area" id="realSqlText" readonly></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!--mybatis转sql end-->
+</body>
+<script src="layui/layui.js"></script>
+<script src="default.js"></script>
+<script src="match.js"></script>
+</html>

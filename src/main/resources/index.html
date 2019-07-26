@@ -5,6 +5,49 @@
     <link rel="icon" type="image/x-icon" href="/tiger.ico"/>
     <link rel="stylesheet" href="/layui/css/layui.css"  media="all">
     <style>
+
+        .tab-hide{
+            display:none!important;
+        }
+
+        /* 导航条样式 */
+        .nav-a{
+            font-size:18px;
+        }
+        .scanner-package-menu{
+
+        }
+        /* 导航条样式 end */
+
+        /* sql转换样式 */
+        .inline-input{
+            display:inline;
+        }
+        .left-area{
+            margin-right:25px;
+        }
+        .right-area{
+            width:46%;
+        }
+        .text-area{
+            border-color:#c6c6c6;
+            width:100%;
+            border-radius:2px;
+            padding:3px;
+            resize:none;
+            height:580px;
+        }
+        .bean-div{
+            border:1px solid #63BA79;
+            min-height:50px;
+            width:100%;
+            border-radius:2px;
+            padding:5px;
+        }
+        /* sql转换样式 end */
+
+
+        /* controller包扫描样式 */
         .controller-content{
             margin-right:16px;
             min-height:870px;
@@ -151,19 +194,101 @@
             margin-left:50px;
             background-color:#2882a2!important;
         }
+        /* controller包扫描样式 end */
     </style>
 </head>
 <body>
-    <ul class="layui-nav">
-        <li class="layui-nav-item" id="servicename">HOOLINK-RPC</li>
-    </ul>
-    <div class="layui-row" style="margin-left:100px;margin-right:100px">
+
+    <!--导航条 start-->
+    <div>
+        <ul class="layui-nav" lay-filter="changeMenu">
+            <li class="layui-nav-item layui-this">
+                <a href="javascript:void(0)" id="toMybatisNav" class="nav-a">SQL转Mybatis</a>
+            </li>
+            <li class="layui-nav-item" style="margin-left:20px;">
+                <a href="javascript:void(0)" id="toSqlNav" class="nav-a">Mybatis转SQL</a>
+            </li>
+            <li class="layui-nav-item" style="margin-left:20px;">
+                <a href="javascript:void(0)" id="toScannerNav"  class="nav-a" class="scanner-package-menu" style="display:inline-block;padding-right:3px;">RAPController扫描</a>
+                <a href="javascript:void(0)" id="servicename" class="service-name-menu" style="display:inline-block;padding-left:2px;font-size:12px;color:#5db175;">HOOLINK-RPC</a>
+            </li>
+        </ul>
+    </div>
+    <!--导航条 end-->
+
+    <!--sql转mybatis start-->
+    <div id="sqlToMybatis">
+        <div style="margin-top:20px;margin-left:20px;font-size:16px">
+            <div style="margin-bottom:15px">
+                <span>SQL语句ID：</span>
+                <span><input type="text" id="sqlId" style="width:300px" class="layui-input inline-input"/></span>
+                <span style="margin-left:35px">方法参数对象名：</span>
+                <span><input type="text" name="sqlParaName" id="sqlParaName" style="width:300px" class="layui-input inline-input"></span>
+                <span style="margin-left:40px"><input type="button" style="margin-left:20px" value="SQL转Mybatis" id="toMybatisBtn"  class="layui-btn"/></span>
+            </div>
+            <div class="layui-row">
+                <div class="layui-col-md6 left-area">
+                    <div style="font-size:18px">SQL：</div>
+                    <textarea type="text" name="" id="sqlText" class="text-area"></textarea>
+                </div>
+                <div class="layui-col-md5 right-area">
+                    <div style="font-size:18px">Mybatis：</div>
+                    <textarea class="text-area" id="mybatisText" readonly></textarea>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top:20px;margin-left:20px;font-size:16px;display:none" id="beanDiv">
+            <div class="layui-row">
+                <div class="layui-col-md6 left-area">
+                    <div style="font-size:18px">WHERE条件实体类：</div>
+                    <div type="text" id="whereBean" class="bean-div">dd</div>
+                </div>
+                <div  class="layui-col-md5 right-area">
+                    <div style="font-size:18px">结果集实体类：</div>
+                    <div id="resultBean" class="bean-div">dd</div>
+                </div>
+            </div>
+            <div class="layui-row" style="margin-top:20px;margin-bottom:10px">
+                <div class="layui-col-md12 left-area">
+                    <div style="font-size:18px">调用方法：</div>
+                    <div type="text" id="callMethod" class="bean-div" style="width:97.8%">dd</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!--sql转mybatis end-->
+
+    <!--mybatis转sql start-->
+    <div id="mybatisToSql" class="tab-hide">
+        <div style="margin-top:20px;margin-left:20px;font-size:16px">
+            <div style="margin-bottom:15px">
+                <span>参数值：</span>
+                <span><input type="text" id="mybatisParamVals" style="width:800px" class="layui-input inline-input"/></span>
+                <span style="margin-left:40px"><input type="button" style="margin-left:20px" value="Mybatis转SQL" id="toSqlBtn"  class="layui-btn"/></span>
+            </div>
+            <div class="layui-row">
+                <div class="layui-col-md6 left-area">
+                    <div style="font-size:18px">MybatisSQL：</div>
+                    <textarea type="text" name="" id="mybatisSqlText" class="text-area"></textarea>
+                </div>
+                <div class="layui-col-md5 right-area">
+                    <div style="font-size:18px">RealSQL：</div>
+                    <textarea  class="text-area" id="realSqlText" readonly></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!--mybatis转sql end-->
+
+    <!-- controller包扫描 start -->
+    <div class="layui-row tab-hide" style="margin-left:100px;margin-right:100px" id="scannerPackage">
         <div class="layui-col-xs3">
             <div class="grid-demo grid-demo-bg1 controller-content">
                 <div class="controllerDiv layui-form-item search-content">
                     <div class="v-align contentRight">
-                        <input type="text" name="title" lay-verify="title" autocomplete="off" placeholder="请输入URL" class="layui-input url-input">
-                        <input type="button" class="layui-btn layui-btn-radius search-btn" value="搜索"></input>
+                        <input type="text" name="title" lay-verify="title" autocomplete="off" placeholder="请输入URL" id="urlinput" class="layui-input url-input">
+                        <input type="button" class="layui-btn layui-btn-radius search-btn" id="searchbtn" value="搜索"></input>
                     </div>
                 </div>
                 <div id="controllerlist" style="margin:0px">
@@ -175,6 +300,7 @@
 
         </div>
     </div>
+    <!-- controller包扫描 end -->
 
     <!--controller区域模板 start-->
     <div class="controllerDiv mouse" id="controllercontainer" classpath="com.hoolink.dmx.controller.MrDmxDownController" style="display:none">
@@ -220,7 +346,7 @@
     <!--方法区域模板 end-->
 
     <!--loading start-->
-    <div class="load-content" id="loadcontent">
+    <div class="load-content tab-hide" id="loadcontent">
         <div style="font-size:16px;font-weight:bold;margin-bottom:5px;color:#245973">数据加载中...</div>
         <div class="layui-progress layui-progress-big" lay-showpercent="true" lay-filter="load">
             <div class="layui-progress-bar layui-bg-green" lay-percent="0%"></div>
@@ -232,11 +358,10 @@
     <div class="mask-content" id="mask"></div>
     <!--遮罩层 end-->
 
-    <input type="button" value="弹出框dialog" id="servicedialogbtn"/>
-
 </body>
 <script src="/layui/layui.js"></script>
 <script src="/layui/clipboard.min.js"></script>
+<script src="/transsql.js"></script>
 <script src="/index.js"></script>
 <script src="/match.js"></script>
 </html>
