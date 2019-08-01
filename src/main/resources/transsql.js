@@ -215,7 +215,7 @@ layui.use(['layer', 'element'],function() {
             if(checkFieldType(fieldParaStr)=="String"){
                 beforeStr +=" and "+objName+fieldParaStr+"!=''\">";
             }else{
-                beforeStr+=">";
+                beforeStr+="\">";
             }
         }
         beforeStr += "\n" + "	" + sqlCondKeyStr + " ";
@@ -295,7 +295,7 @@ layui.use(['layer', 'element'],function() {
         fields=fields .replace(/\s+/g,"");
         var fieldArr=fields.split(",");
         var itemStr="";
-        var sqlParamNameget=getSqlParamName();
+        var sqlParamName=getSqlParamName();
         for(var i in fieldArr){
             itemStr+="#{"+sqlParamName+fieldToBeanParamName(fieldArr[i])+"},";
         }
