@@ -384,7 +384,7 @@ layui.use(['layer', 'element'],function() {
             var printStr="@Data<br/>public class "+getWhereClassName()+" implements Serializable {<br/>";
             for(var i=0;i<keyArr.length;i++){
                 //printStr=printStr+"paraMap.put(\""+keyArr[i]+"\","+keyArr[i]+");<br/>";
-                var fieldStr=keyArr[i].toLowerCase();
+                var fieldStr=keyArr[i];//.toLowerCase();
                 printStr+="&nbsp;&nbsp;&nbsp;&nbsp;private ";
                 printStr+=checkFieldType(fieldStr)+" ";
                 printStr+=fieldStr+";<br/>";
@@ -414,13 +414,8 @@ layui.use(['layer', 'element'],function() {
             var asIndx=colStr.toUpperCase().indexOf(" AS ");
             if(asIndx>0){
                 fieldStr=colStr.substring(asIndx+3);
-            }else if(colStr.indexOf("_")==-1){
-                var dotIndx=colStr.indexOf(".");
-                if(dotIndx>0){
-                    fieldStr=colStr.substring(dotIndx+1);
-                }else{
-                    fieldStr=colStr;
-                }
+            }else{
+                fieldStr=fieldToBeanParamName(colStr);
             }
             var fieldType=checkFieldType(fieldStr);
             beanStr+="&nbsp;&nbsp;&nbsp;&nbsp;private "+fieldType+" "+trim(fieldStr)+";<br/>";
@@ -496,7 +491,7 @@ layui.use(['layer', 'element'],function() {
                 var keyArr=mapKeysStr.split(",");
                 var methodParamStr="";
                 for(var i=0;i<keyArr.length;i++){
-                    var fieldStr=keyArr[i].toLowerCase();
+                    var fieldStr=keyArr[i];//.toLowerCase();
                     methodParamStr+="@Param(\""+fieldStr+"\") ";
                     methodParamStr+=checkFieldType(fieldStr)+" ";
                     methodParamStr+=fieldStr+",";
