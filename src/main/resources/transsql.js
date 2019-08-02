@@ -410,10 +410,13 @@ layui.use(['layer', 'element'],function() {
         var beanStr="@Data<br/>public class "+getResultClassName()+" implements Serializable {<br/>";
         var fieldStr="";
         for(var i in colArr){
-            var colStr=colArr[i];
+            var colStr=trim(colArr[i]);
             var asIndx=colStr.toUpperCase().indexOf(" AS ");
+            var spaceIndx=colStr.toUpperCase().indexOf(" ");
             if(asIndx>0){
                 fieldStr=colStr.substring(asIndx+3);
+            }else if(spaceIndx>0){
+                fieldStr=colStr.substring(spaceIndx+1);
             }else{
                 fieldStr=fieldToBeanParamName(colStr);
             }

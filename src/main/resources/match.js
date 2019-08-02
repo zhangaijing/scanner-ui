@@ -185,7 +185,7 @@ layui.use(['form','layer', 'element'],function() {
                 fieldComment=key.substring(specialIndex+3);
             }
             var matchKeyObj=dataJson[field];
-            if(matchKeyObj||matchKeyObj==false){
+            if(matchKeyObj||matchKeyObj==false||matchKeyObj==null){
                 var matchKeyObjType=$.type(matchKeyObj);
                 if(matchKeyObjType=="array"){
                     //console.log(field+":数组");
@@ -195,7 +195,10 @@ layui.use(['form','layer', 'element'],function() {
                         var arrItem=matchKeyObj[0];
                         //暂不考虑二维数组
                         if(isJson(arrItem)){
-                            for(var j in commentJson[key]){
+                            var commentJsonArrLen=commentJson[key].length;
+                            var matchKeyObjArrLen=matchKeyObj.length;
+                            var iterateLen=commentJsonArrLen<matchKeyObjArrLen?commentJsonArrLen:matchKeyObjArrLen;
+                            for(var j=0;j<iterateLen;j++){//var j in commentJson[key]
                                 matchfun(commentJson[key][j],matchKeyObj[j]);
                             }
                             var diffLen=matchKeyObj.length-commentJson[key].length;
