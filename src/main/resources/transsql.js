@@ -38,7 +38,8 @@ layui.use(['layer', 'element'],function() {
         }
         console.log("数字替换后的SQL"+str);
         //in 替换
-        reg=/(\s*)in(.*?)\((.*?)\)/ig;
+        //reg=/\s+(\s*)in(.*?)\((.*?)\)\s+/ig;
+        reg=/\s+in\s+/ig;
         str=replaceSpecial(str,reg,' in ?')
         console.log("替换IN后的SQL："+str);
         generBean(str);
@@ -154,7 +155,7 @@ layui.use(['layer', 'element'],function() {
                 replaceDateJson[replaceStr]=matchStr;
             }
         }
-        reg=/FROM_UNIXTIME\s*\((.*?)\)/ig;
+        reg=/from_unixtime\s*\((.*?)\)/ig;
         result=sqlStr.match(reg);
         if(result){
             for(var i in result){
@@ -164,7 +165,9 @@ layui.use(['layer', 'element'],function() {
                 var replaceStr=trim(matchStr.substring(leftBrackets+1,rightBrackets));
                 replaceStr=replaceStr.replace(",","_");
                 replaceStr=replaceAll(replaceStr,"'","");
-                replaceStr=replaceStr.replace("/1000","");
+                replaceStr=replaceAll(replaceStr," ","");
+                var tempReg=/\s*1000/ig;
+                replaceStr=replaceReg(replaceStr,tempReg,"");
                 sqlStr=sqlStr.replace(matchStr,replaceStr);
                 replaceDateJson[replaceStr]=matchStr;
             }
