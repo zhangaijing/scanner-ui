@@ -3,6 +3,7 @@ layui.use(['layer', 'element'],function() {
         $ = layui.$,
         element = layui.element;
 
+    var replaceDateJson={};
     /**
      * SQL转Mybatis按钮单击事件
      */
@@ -16,6 +17,8 @@ layui.use(['layer', 'element'],function() {
             return;
         }
         str=replaceEnabled(str);
+        replaceDateJson={};
+        str=replaceDate(str);
         //字符串替换为'?'
         var reg = /\'(.*?)\'/g;
         var result=str.match(reg);
@@ -35,7 +38,7 @@ layui.use(['layer', 'element'],function() {
         }
         console.log("数字替换后的SQL"+str);
         //in 替换
-        reg=/(\s*)in(.*?)\((.*?)\)/g;
+        reg=/(\s*)in(.*?)\((.*?)\)/ig;
         str=replaceSpecial(str,reg,' in ?')
         console.log("替换IN后的SQL："+str);
         generBean(str);
@@ -99,6 +102,7 @@ layui.use(['layer', 'element'],function() {
             sqlAfterFlagStr="</select>";
         }
         sqlStr=sqlBeforeFlagStr+" id=\""+$("#sqlId").val()+"\" resultType=\"beanTemplate\">\n"+sqlStr+"\n"+sqlAfterFlagStr;
+        sqlStr=dateRestore(sqlStr);
         $("#mybatisText").val(sqlStr);
         generWhereBean(mapKeys);
         generMethod(mapKeys);
@@ -132,6 +136,43 @@ layui.use(['layer', 'element'],function() {
     }
 
     /**
+     * date_format和FROM_UNIXTIME特殊处理
+     */
+    function replaceDate(sqlStr){
+        var sqlStr=nowTrans(sqlStr);
+        var reg=/date_format\s*\((.*?)\)/ig;
+        var result=sqlStr.match(reg);
+        if(result){
+            for(var i in result){
+                var matchStr=result[i];
+                var leftBrackets=matchStr.indexOf("(");
+                var rightBrackets=matchStr.indexOf(")");
+                var replaceStr=trim(matchStr.substring(leftBrackets+1,rightBrackets));
+                replaceStr=replaceStr.replace(",","_");
+                replaceStr=replaceAll(replaceStr,"'","");
+                sqlStr=sqlStr.replace(matchStr,replaceStr);
+                replaceDateJson[replaceStr]=matchStr;
+            }
+        }
+        reg=/FROM_UNIXTIME\s*\((.*?)\)/ig;
+        result=sqlStr.match(reg);
+        if(result){
+            for(var i in result){
+                var matchStr=result[i];
+                var leftBrackets=matchStr.indexOf("(");
+                var rightBrackets=matchStr.indexOf(")");
+                var replaceStr=trim(matchStr.substring(leftBrackets+1,rightBrackets));
+                replaceStr=replaceStr.replace(",","_");
+                replaceStr=replaceAll(replaceStr,"'","");
+                replaceStr=replaceStr.replace("/1000","");
+                sqlStr=sqlStr.replace(matchStr,replaceStr);
+                replaceDateJson[replaceStr]=matchStr;
+            }
+        }
+        return sqlStr;
+    }
+
+    /**
      * 替换enabled---特殊处理
      */
     function replaceEnabled(sqlStr){
@@ -150,6 +191,17 @@ layui.use(['layer', 'element'],function() {
                 }
             }
         }
+        return sqlStr;
+    }
+
+    /**
+     * 日期处理替换为原来的字符
+     */
+    function dateRestore(sqlStr){
+        for(var key in replaceDateJson){
+            sqlStr=sqlStr.replace(key,replaceDateJson[key]);
+        }
+        sqlStr=replaceAll(sqlStr,"now_brackets","now()");
         return sqlStr;
     }
 
@@ -223,7 +275,13 @@ layui.use(['layer', 'element'],function() {
             beforeStr+= fieldStr
         }
         beforeStr+=" " + generKeyJoinFun(sqlKeyStr, fieldParaStr,fieldStr) + "\n</if>";
-        mapKeys = mapKeys + fieldParaStr + ",";
+        if(sqlKeyStr.toUpperCase()=="IN"){
+            mapKeys=mapKeys+fieldParaStr+"List,";
+        }else if(sqlKeyStr.toUpperCase()=="STARTEND"){
+            mapKeys=mapKeys+fieldParaStr+"Start,"+fieldParaStr+"End,";
+        }else{
+            mapKeys = mapKeys + fieldParaStr + ",";
+        }
         return beforeStr;
     }
 
@@ -289,6 +347,7 @@ layui.use(['layer', 'element'],function() {
      * 批量插入处理
      */
     function batchInsert(insertSql){
+        $("#beanDiv").css("display","block");
         var fieldStartIndex=insertSql.indexOf("(");
         var fieldEndIndex=insertSql.indexOf(")");
         var fields=insertSql.substring(fieldStartIndex+1,fieldEndIndex);
@@ -296,8 +355,12 @@ layui.use(['layer', 'element'],function() {
         var fieldArr=fields.split(",");
         var itemStr="";
         var sqlParamName=getSqlParamName();
+        var paramKeyJoin="";
+        var paramKey="";
         for(var i in fieldArr){
-            itemStr+="#{"+sqlParamName+fieldToBeanParamName(fieldArr[i])+"},";
+            paramKey=fieldToBeanParamName(fieldArr[i]);
+            itemStr+="#{"+sqlParamName+paramKey+"},";
+            paramKeyJoin=paramKeyJoin+paramKey+",";
         }
         if(itemStr.length>0){
             itemStr=itemStr.substring(0,itemStr.length-1);
@@ -306,8 +369,12 @@ layui.use(['layer', 'element'],function() {
         var buildSql=insertSql.substring(0,valuesStrIndex);
         buildSql+="\n<foreach collection =\"list\" item=\"item\" separator =\",\">\n" +
             "\t("+itemStr+")\n" +
-            "</foreach >"
+            "</foreach >";
         $("#mybatisText").val(buildSql);
+        $("#resultBean").html("");
+        $("#resultBean").show();
+        generWhereBean(paramKeyJoin);
+        generMethod(paramKeyJoin);
     }
 
     /**
@@ -391,6 +458,7 @@ layui.use(['layer', 'element'],function() {
             }
             printStr+="}";
             $("#whereBean").html(printStr);
+            $("#whereBean").show();
         }
     }
 
@@ -398,14 +466,35 @@ layui.use(['layer', 'element'],function() {
      * 输出查询结果集实体类
      */
     function generBean(sqlStr){
-        var fromIndx=sqlStr.indexOf("from");
-        var colArrStr=sqlStr.substring("select".length,fromIndx);
+        sqlStr=replaceAll(sqlStr," from "," FROM ");
+        sqlStr=replaceAll(sqlStr,"select ","SELECT ");
+        var fromIndx=sqlStr.indexOf(" FROM ");
+        var colArrStr=sqlStr.substring("SELECT".length,fromIndx);
         var reg=/ *, */g;
         colArrStr=replaceReg(colArrStr,reg,",");
         reg=/ *\. */g;
         colArrStr=replaceReg(colArrStr,reg,".");
-        if(colArrStr.indexOf("*")>0)
+        if(trim(colArrStr)=="*"){
+            $("#resultBean").html("");
             return;
+        }
+        var reg=/now\s*\((.*?)\)/ig;
+        var result=colArrStr.match(reg);
+        if(result){
+            for(var i in result){
+                colArrStr=colArrStr.replace(result[i],"now");
+            }
+        }
+        var  reg=/date_format\s*\((.*?)\)/ig;
+        var result=colArrStr.match(reg);
+        if(result){
+            for(var i in result){
+                var dotIndex=result[i].indexOf(",");
+                var leftBrackets=result[i].indexOf("(");
+                var fieldName=trim(result[i].substring(leftBrackets+1,dotIndex));
+                colArrStr=colArrStr.replace(result[i],fieldName);
+            }
+        }
         var colArr=colArrStr.split(",");
         var beanStr="@Data<br/>public class "+getResultClassName()+" implements Serializable {<br/>";
         var fieldStr="";
@@ -425,6 +514,7 @@ layui.use(['layer', 'element'],function() {
         }
         beanStr+="}";
         $("#resultBean").html(beanStr);
+        $("#resultBean").show();
         console.log("生成的实体类："+beanStr);
     }
 
@@ -506,6 +596,7 @@ layui.use(['layer', 'element'],function() {
             }
         }
         $("#callMethod").html(methodContent);
+        $("#callMethod").show();
         console.log("调用方法体："+methodContent);
         return methodContent;
     }
@@ -517,16 +608,50 @@ layui.use(['layer', 'element'],function() {
      */
     function checkFieldType(fieldStr){
         var typeStr="";
-        if(fieldStr=="id"||fieldStr.indexOf("_id")>0){
-            typeStr="Long";
-        }else if(fieldStr.indexOf("status")>0){
-            typeStr="Byte";
-        }else if(fieldStr.indexOf("created")>0){
-            typeStr="Long";
+        if(fieldStr.length>1){
+            if(fieldStr=="id"||fieldStr.indexOf("_id")>0||fieldStr.substring(fieldStr.length-2).toLowerCase()=="id"){
+                typeStr="Long";
+            }else if(fieldStr.indexOf("status")>0){
+                typeStr="Byte";
+            }else if(fieldStr.indexOf("created")>0){
+                typeStr="Long";
+            }else if(fieldStr.substring(fieldStr.length-3).toLowerCase()=="num"){
+                typeStr="Long";
+            }else if(fieldStr.substring(fieldStr.length-4).toLowerCase()=="date"){
+                typeStr="LocalDate";
+            }else if(fieldStr.substring(fieldStr.length-4).toLowerCase()=="time"){
+                typeStr="LocalTime";
+            }else if(fieldStr.substring(fieldStr.length-6).toLowerCase()=="status"){
+                typeStr="Byte";
+            }else if(fieldStr.substring(fieldStr.length-5).toLowerCase()=="start"||fieldStr.substring(fieldStr.length-3).toLowerCase()=="end"){
+                typeStr="Long";
+            }else if(fieldStr.substring(fieldStr.length-4).toLowerCase()=="list"){
+                var itemTypeStr=fieldStr.substring(0,fieldStr.length-4);
+                itemTypeStr=checkFieldType(itemTypeStr);
+                typeStr="List&lt;"+itemTypeStr+"&gt;";
+            }else if(fieldStr.substring(fieldStr.length-7).toLowerCase()=="created"||fieldStr.substring(fieldStr.length-7).toLowerCase()=="creator"){
+                typeStr="Long";
+            }else{
+                typeStr="String";
+            }
         }else{
-            typeStr="String"
+            typeStr="String";
         }
         return typeStr;
+    }
+
+    /**
+     * now()转换为now
+     */
+    function nowTrans(sqlStr){
+        var reg=/now\s*\((.*?)\)/ig;
+        var result=sqlStr.match(reg);
+        if(result){
+            for(var i in result){
+                sqlStr=sqlStr.replace(result[i],"now_brackets");
+            }
+        }
+        return sqlStr;
     }
 
     /**
