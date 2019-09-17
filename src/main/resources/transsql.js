@@ -4,6 +4,8 @@ layui.use(['layer', 'element'],function() {
         element = layui.element;
 
     var replaceDateJson={};
+    var dateIdentStr="@@@";
+    var datePlaceholder="use@date@placeholder";
     /**
      * SQL转Mybatis按钮单击事件
      */
@@ -39,7 +41,8 @@ layui.use(['layer', 'element'],function() {
         console.log("数字替换后的SQL"+str);
         //in 替换
         //reg=/\s+(\s*)in(.*?)\((.*?)\)\s+/ig;
-        reg=/\s+in\s+/ig;
+        //reg=/\s+in\s+/ig;
+        reg=/\s+in\s+\((.*?)\)/ig;
         str=replaceSpecial(str,reg,' in ?')
         console.log("替换IN后的SQL："+str);
         generBean(str);
@@ -83,7 +86,12 @@ layui.use(['layer', 'element'],function() {
         var queIndex=afterStr.indexOf("?");
         var sqlStr="";
         while(queIndex!=-1){
-            var beforeStr=afterStr.substring(0,queIndex);
+            var queAfterStr=afterStr.substring(queIndex+1);
+            var queAfterFirstSpaceIndex=queAfterStr.search(/\s+/i);
+            if(queAfterFirstSpaceIndex>0){
+                queIndex=queIndex+queAfterFirstSpaceIndex;
+            }
+            var beforeStr=afterStr.substring(0,queIndex+1);
             beforeStr=repalceFun(beforeStr);
             afterStr=afterStr.substring(queIndex+1);
             sqlStr+=beforeStr;
@@ -137,37 +145,48 @@ layui.use(['layer', 'element'],function() {
     }
 
     /**
-     * date_format和FROM_UNIXTIME特殊处理
+     * date_format、FROM_UNIXTIME和str_to_date特殊处理
      */
     function replaceDate(sqlStr){
         var sqlStr=nowTrans(sqlStr);
         var reg=/date_format\s*\((.*?)\)/ig;
         var result=sqlStr.match(reg);
-        if(result){
-            for(var i in result){
-                var matchStr=result[i];
-                var leftBrackets=matchStr.indexOf("(");
-                var rightBrackets=matchStr.indexOf(")");
-                var replaceStr=trim(matchStr.substring(leftBrackets+1,rightBrackets));
-                replaceStr=replaceStr.replace(",","_");
-                replaceStr=replaceAll(replaceStr,"'","");
-                sqlStr=sqlStr.replace(matchStr,replaceStr);
-                replaceDateJson[replaceStr]=matchStr;
-            }
-        }
+        sqlStr=replaceDateJsonBuild(sqlStr,result,"date_format");
         reg=/from_unixtime\s*\((.*?)\)/ig;
         result=sqlStr.match(reg);
+        sqlStr=replaceDateJsonBuild(sqlStr,result,"from_unixtime");
+        return sqlStr;
+    }
+
+    /**
+     * 替换日期字符和替换JSON记录
+     * @param sqlStr
+     * @param result
+     * @param typeStr
+     * @returns {*}
+     */
+    function replaceDateJsonBuild(sqlStr,result){
         if(result){
+            var baseCode=97;
             for(var i in result){
+                var curCode=baseCode++;
+                var curChar=String.fromCharCode(curCode);
                 var matchStr=result[i];
                 var leftBrackets=matchStr.indexOf("(");
                 var rightBrackets=matchStr.indexOf(")");
-                var replaceStr=trim(matchStr.substring(leftBrackets+1,rightBrackets));
-                replaceStr=replaceStr.replace(",","_");
-                replaceStr=replaceAll(replaceStr,"'","");
-                replaceStr=replaceAll(replaceStr," ","");
+                matchStr=matchStr.substring(leftBrackets+1,rightBrackets);
+                var fieldStr=matchStr;
+                var dotIndex=fieldStr.indexOf(",");
+                fieldStr=fieldStr.substring(0,dotIndex);
                 var tempReg=/\s*1000/ig;
-                replaceStr=replaceReg(replaceStr,tempReg,"");
+                fieldStr=replaceReg(fieldStr,tempReg,"");
+                fieldStr=fieldStr.replace("/","");
+                fieldStr=trim(fieldStr);
+                if(isDate(fieldStr)){
+                    fieldStr=datePlaceholder;
+                    matchStr=matchStr.substring(dotIndex+1);
+                }
+                var replaceStr=fieldStr+dateIdentStr+curChar;
                 sqlStr=sqlStr.replace(matchStr,replaceStr);
                 replaceDateJson[replaceStr]=matchStr;
             }
@@ -202,6 +221,7 @@ layui.use(['layer', 'element'],function() {
      */
     function dateRestore(sqlStr){
         for(var key in replaceDateJson){
+            var keyIndex=sqlStr.indexOf(key);
             sqlStr=sqlStr.replace(key,replaceDateJson[key]);
         }
         sqlStr=replaceAll(sqlStr,"now_brackets","now()");
@@ -235,28 +255,35 @@ layui.use(['layer', 'element'],function() {
         if(result){
             for(var i in result){
                 var matchStr=result[i];
-                whereStr=whereStr.replace(result[i],replaceStr);
+                whereStr=whereStr.replace(matchStr,replaceStr);
             }
         }
         return whereStr;
     }
 
     /**
-     * 替换标识符
+     * 替换SQL条件标识符
      */
-    function repalceFun(beforeStr) {
-        beforeStr = rtrim(beforeStr);
+    function repalceFun(sqlWhereStageStr) {
+        beforeStr = rtrim(sqlWhereStageStr);
         beforeStr = spaceOptFun(beforeStr);
         var firstSpaceLastInd = beforeStr.lastIndexOf(" ");
-        var sqlKeyStr = trim(beforeStr.substring(firstSpaceLastInd));
+        //var sqlKeyStr = trim(beforeStr.substring(firstSpaceLastInd));
+        var sqlKeyStr=cutOutRelationOperator(beforeStr);
         beforeStr = rtrim(beforeStr.substring(0, firstSpaceLastInd));//SQL关键字(=,like,in等)前的所有字符串。
         var secondSpaceLastInd = beforeStr.lastIndexOf(" ");
-        var fieldStr = trim(beforeStr.substring(secondSpaceLastInd));
+        //var fieldStr = trim(beforeStr.substring(secondSpaceLastInd));
+        var cutOutJson=cutOutFieldNameAndCondiKey(beforeStr);
+        var fieldStr=cutOutJson.fieldName;
         beforeStr = rtrim(beforeStr.substring(0, secondSpaceLastInd));//字段前的所有字符串。
-        firstSpaceLastInd = beforeStr.lastIndexOf(" ");
-        var sqlCondKeyStr = trim(beforeStr.substring(firstSpaceLastInd));
-        beforeStr = rtrim(beforeStr.substring(0, firstSpaceLastInd));//SQL关键字(and,or等)前的所有字符串。
-        var fieldParaStr = fieldToBeanParamName(fieldStr);
+        //firstSpaceLastInd = beforeStr.lastIndexOf(" ");
+        //var sqlCondKeyStr = trim(beforeStr.substring(firstSpaceLastInd));
+        var sqlCondKeyStr=cutOutJson.condiKey;
+        //beforeStr = rtrim(beforeStr.substring(0, firstSpaceLastInd));//SQL关键字(and,or等)前的所有字符串。
+        beforeStr=rtrim(beforeStr.substring(0,cutOutJson.condiIndex));
+        var whereStageStr=sqlWhereStageStr.substring(cutOutJson.condiIndex);
+        fieldStr=restoreDateFieldName(fieldStr);
+        var fieldParaStr= fieldToBeanParamName(fieldStr);
         var objName=getSqlParamName();
         if(sqlKeyStr.toUpperCase()=="IN"){
             beforeStr += "\n" + "<if test=\"" + objName+fieldParaStr + "List !=null";
@@ -274,10 +301,11 @@ layui.use(['layer', 'element'],function() {
             }
         }
         beforeStr += "\n" + "	" + sqlCondKeyStr + " ";
+
         if(sqlKeyStr.toUpperCase()!="LOCATE"){
             beforeStr+= fieldStr
         }
-        beforeStr+=" " + generKeyJoinFun(sqlKeyStr, fieldParaStr,fieldStr) + "\n</if>";
+        beforeStr+=" " + generKeyJoinFun(sqlKeyStr, fieldParaStr,whereStageStr) + "\n</if>";
         if(sqlKeyStr.toUpperCase()=="IN"){
             mapKeys=mapKeys+fieldParaStr+"List,";
         }else if(sqlKeyStr.toUpperCase()=="STARTEND"){
@@ -286,6 +314,26 @@ layui.use(['layer', 'element'],function() {
             mapKeys = mapKeys + fieldParaStr + ",";
         }
         return beforeStr;
+    }
+
+    /**
+     * 判断字段名是否在replaceDateJson中，在该JSON中还原为原来的字段名
+     */
+    function restoreDateFieldName(fieldParaStr){
+        var restoreFieldName=fieldParaStr;
+        for(var key in replaceDateJson){
+            if(fieldParaStr.toUpperCase()==key.toUpperCase()){
+                var identIndex=key.indexOf(dateIdentStr);
+                if(identIndex>0){
+                    restoreFieldName=key.substring(0,identIndex);
+                    if(restoreFieldName.substring(restoreFieldName.length-1)=="/"){
+                        restoreFieldName=restoreFieldName.substring(0,restoreFieldName.length-1);
+                    }
+                }
+                break;
+            }
+        }
+        return restoreFieldName;
     }
 
     /**
@@ -306,12 +354,12 @@ layui.use(['layer', 'element'],function() {
         var condArr = condStr.split(",");
         for (var i in condArr) {
             var tempStr = condArr[i];
-            if (splitStr.indexOf(tempStr) > -1) {
-                var tempStrLen = tempStr.length;
+            var optIndex=splitStr.indexOf(tempStr);
+            if ( optIndex> -1) {
                 var splitCondLen = splitStr.length - tempStr.length;
-                var sqlCondStr = splitStr.substring(splitCondLen - 1);
-                if (" " + tempStr != sqlCondStr) {//不存在空格
-                    splitStr = splitStr.substring(0, splitCondLen) + " " + tempStr;
+                var sqlCondStr = splitStr.substr(optIndex-1,1);
+                if (" " != sqlCondStr) {//不存在空格
+                    splitStr = splitStr.substring(0, optIndex) + " " + tempStr;
                 }
                 break;
             }
@@ -321,98 +369,115 @@ layui.use(['layer', 'element'],function() {
     }
 
     /**
+     * 截取语句中的字段名
+     * @param str
+     */
+    function cutOutFieldNameAndCondiKey(str){
+        var returnJson={};
+        var matchStrArr=["between ","and ","or "];
+        var lowerStr=str.toLowerCase();
+        var matchIndexArr=[];
+        for(var i in matchStrArr){
+            var index=lowerStr.lastIndexOf(matchStrArr[i]);
+            matchIndexArr.push(index);
+        }
+        var bigVal=0;
+        var bigMatchStr="";
+        for(var i in matchIndexArr){
+            if(bigVal<matchIndexArr[i]){
+                bigVal=matchIndexArr[i];
+                bigMatchStr=matchStrArr[i];
+            }
+        }
+        var matchAfterStr=trim(str.substring(bigVal+bigMatchStr.length));
+        var firstSpaceIndex=matchAfterStr.indexOf(" ");
+        var fieldName;
+        if(firstSpaceIndex==-1){
+            firstSpaceIndex=matchAfterStr.length;
+        }
+        var matchFieldStr=matchAfterStr.substring(0,firstSpaceIndex);
+        var reg=/date_format\s*\((.*?)\)/ig;
+        fieldName=cutOutDateFieldName(matchFieldStr,reg);
+        if(fieldName==""){
+            reg=/from_unixtime\s*\((.*?)\)/ig;
+            fieldName=cutOutDateFieldName(matchFieldStr,reg);
+        }
+        if(fieldName==""){
+            reg=/str_to_date\s*\((.*?)\)/ig;
+            fieldName=cutOutDateFieldName(matchFieldStr,reg);
+        }
+        if(fieldName==""){
+            fieldName=matchFieldStr;
+        }
+        returnJson.fieldName=fieldName;
+        returnJson.condiKey=trim(bigMatchStr);
+        returnJson.condiIndex=bigVal;
+        return returnJson;
+    }
+
+    /**
+     * 截取日期字段名
+     * @param str
+     */
+    function cutOutDateFieldName(str,reg){
+        var result=str.match(reg);
+        var dateFieldStr="";
+        if(result){
+            var leftBrackets=str.indexOf("(");
+            var dateIdentIndex=str.indexOf(dateIdentStr);
+            dateFieldStr=str.substring(leftBrackets+1,dateIdentIndex);
+        }
+        return dateFieldStr;
+    }
+
+    /**
+     * 截取关系运算符
+     * @param str
+     * @returns {number}
+     */
+    function cutOutRelationOperator(str){
+        var matchStrArr=[" >="," <="," ="," !="," >"," <"," like"," not in"," in"," locate"];
+        var lowerStr=str.toLowerCase();
+        var operatorStr="";
+        for(var i in matchStrArr){
+            var operatorIndex=lowerStr.lastIndexOf(matchStrArr[i]);
+            if(operatorIndex>0){
+                operatorStr=trim(matchStrArr[i]);
+                break;
+            }
+        }
+        return operatorStr;
+    }
+
+
+    /**
      * 生成条件关键字的组合字符串--------- =,like,in
      */
-    function generKeyJoinFun(key,fieldPara,fieldStr){
+    function generKeyJoinFun(key,fieldPara,whereStageStr){
         var objName=getSqlParamName();
         key=key.toUpperCase();
         var keyJoinStr="";
-        if(key=="="){
-            keyJoinStr="= #{"+objName+fieldPara+"}";
+        var generJoinStr="#{"+objName+fieldPara+"}";
+        if(key.indexOf("=")>-1||key.indexOf(">")>-1||key.indexOf("<")>-1){
+            //keyJoinStr="= #{"+objName+fieldPara+"}";
+            keyJoinStr=whereStageStr.replace("?",generJoinStr);
         }else if(key=="LIKE"){
             keyJoinStr="LIKE concat(concat('%',#{"+objName+fieldPara+"}),'%')";
-        }else if(key=="IN"){
+        }else if(key=="IN"||key=="NOT IN"){
             //keyJoinStr="IN :"+fieldPara;
             keyJoinStr="IN \n\t<foreach item=\""+fieldPara+"\" index=\"index\" " +
                 "collection=\"" +objName+fieldPara+"List\" " +
                 "open=\"(\" separator=\",\" close=\")\">\n\t\t#{"+fieldPara+"}\n\t</foreach>";
         }else if(key=="LOCATE"){
-            keyJoinStr="LOCATE (#{"+objName+fieldPara+"},"+fieldStr+")";
+            //keyJoinStr="LOCATE (#{"+objName+fieldPara+"},"+fieldStr+")";
+            keyJoinStr=whereStageStr.replace("?",generJoinStr);
         }else if(key=="STARTEND"){
             keyJoinStr="BETWEEN #{"+objName+fieldPara+"Start} and #{"+objName+fieldPara+"End}";
         }else{
-            keyJoinStr=rtrim(key)+"#{"+objName+fieldPara+"}";
+            //keyJoinStr=rtrim(key)+"#{"+objName+fieldPara+"}";
+            keyJoinStr=whereStageStr.replace("?",generJoinStr);
         }
         return keyJoinStr;
-    }
-
-    /**
-     * 批量插入处理
-     */
-    function batchInsert(insertSql){
-        $("#beanDiv").css("display","block");
-        var fieldStartIndex=insertSql.indexOf("(");
-        var fieldEndIndex=insertSql.indexOf(")");
-        var fields=insertSql.substring(fieldStartIndex+1,fieldEndIndex);
-        fields=fields .replace(/\s+/g,"");
-        var fieldArr=fields.split(",");
-        var itemStr="";
-        var sqlParamName=getSqlParamName();
-        var paramKeyJoin="";
-        var paramKey="";
-        for(var i in fieldArr){
-            paramKey=fieldToBeanParamName(fieldArr[i]);
-            itemStr+="#{"+sqlParamName+paramKey+"},";
-            paramKeyJoin=paramKeyJoin+paramKey+",";
-        }
-        if(itemStr.length>0){
-            itemStr=itemStr.substring(0,itemStr.length-1);
-        }
-        var valuesStrIndex=insertSql.indexOf("(",fieldEndIndex+1);
-        var buildSql=insertSql.substring(0,valuesStrIndex);
-        buildSql+="\n<foreach collection =\"list\" item=\"item\" separator =\",\">\n" +
-            "\t("+itemStr+")\n" +
-            "</foreach >";
-        $("#mybatisText").val(buildSql);
-        $("#resultBean").html("");
-        $("#resultBean").show();
-        generWhereBean(paramKeyJoin);
-        generMethod(paramKeyJoin);
-    }
-
-    /**
-     * 更新处理
-     */
-    function batcbUpdate(sqlStr){
-        var setIndx=sqlStr.indexOf("set ");
-        var whereIndx=sqlStr.indexOf("where");
-        var setBeforeSqlStr=sqlStr.substring(0,setIndx);
-        var whereAfterSqlStr=sqlStr.substring(whereIndx);
-        var updateField=sqlStr.substring(setIndx+"set ".length,whereIndx);
-        var reg=/ *, */g;
-        updateField=replaceReg(updateField,reg,",");
-        reg=/ *\. */g;
-        updateField=replaceReg(updateField,reg,".");
-        var updateFieldArr=updateField.split(",");
-        var updateSqlStr=setBeforeSqlStr+="\n<set>";
-        var sqlParamName=getSqlParamName();
-        for(var i in updateFieldArr){
-            var fieldParaStr=updateFieldArr[i];
-            var equalIndx=fieldParaStr.indexOf("=");
-            fieldParaStr=fieldParaStr.substring(0,equalIndx);
-            var beanParamStr=fieldToBeanParamName(fieldParaStr);
-            updateSqlStr += "\n" + "<if test=\"" +sqlParamName+ beanParamStr + "!=null";
-            if(checkFieldType(fieldParaStr)=="String"){
-                updateSqlStr +=" and "+sqlParamName+beanParamStr+"!=''\">";
-            }else{
-                updateSqlStr+=">";
-            }
-            updateSqlStr+="\n"+fieldParaStr+generKeyJoinFun("=",beanParamStr)+",";
-            updateSqlStr+="\n</if>";
-        }
-        updateSqlStr+="\n</set>\n"+whereAfterSqlStr;
-        console.log("批量更新SQL："+updateSqlStr);
-        return updateSqlStr;
     }
 
     /**
@@ -522,8 +587,113 @@ layui.use(['layer', 'element'],function() {
     }
 
     /**
+     * 调用函数语句的生成
+     * @param mapKeysStr
+     * @returns {string}
+     */
+    function generMethod(mapKeysStr){
+        var selectId=$("#sqlId").val();
+        var javaParamName=$("#sqlParaName").val();
+        var methodContent="public "+getResultClassName()+" "+selectId+"(";
+        if(javaParamName){
+            methodContent+="@Param(\""+javaParamName+"\") "+getWhereClassName()+" "+javaParamName+");";;
+        }else{
+            if(mapKeysStr.length>0){
+                mapKeysStr=mapKeysStr.substring(0,mapKeysStr.length-1);
+                var keyArr=mapKeysStr.split(",");
+                var methodParamStr="";
+                for(var i=0;i<keyArr.length;i++){
+                    var fieldStr=keyArr[i];//.toLowerCase();
+                    methodParamStr+="@Param(\""+fieldStr+"\") ";
+                    methodParamStr+=checkFieldType(fieldStr)+" ";
+                    methodParamStr+=fieldStr+",";
+                }
+                if(methodParamStr.length>0){
+                    methodParamStr=methodParamStr.substring(0,methodParamStr.length-1);
+                }
+                methodContent+=methodParamStr+")";
+            }
+        }
+        $("#callMethod").html(methodContent);
+        $("#callMethod").show();
+        console.log("调用方法体："+methodContent);
+        return methodContent;
+    }
+
+    //======================================================批量插入和批量更新处理函数===================================================
+    /**
+     * 批量插入处理
+     */
+    function batchInsert(insertSql){
+        $("#beanDiv").css("display","block");
+        var fieldStartIndex=insertSql.indexOf("(");
+        var fieldEndIndex=insertSql.indexOf(")");
+        var fields=insertSql.substring(fieldStartIndex+1,fieldEndIndex);
+        fields=fields .replace(/\s+/g,"");
+        var fieldArr=fields.split(",");
+        var itemStr="";
+        var sqlParamName=getSqlParamName();
+        var paramKeyJoin="";
+        var paramKey="";
+        for(var i in fieldArr){
+            paramKey=fieldToBeanParamName(fieldArr[i]);
+            itemStr+="#{"+sqlParamName+paramKey+"},";
+            paramKeyJoin=paramKeyJoin+paramKey+",";
+        }
+        if(itemStr.length>0){
+            itemStr=itemStr.substring(0,itemStr.length-1);
+        }
+        var valuesStrIndex=insertSql.indexOf("(",fieldEndIndex+1);
+        var buildSql=insertSql.substring(0,valuesStrIndex);
+        buildSql+="\n<foreach collection =\"list\" item=\"item\" separator =\",\">\n" +
+            "\t("+itemStr+")\n" +
+            "</foreach >";
+        $("#mybatisText").val(buildSql);
+        $("#resultBean").html("");
+        $("#resultBean").show();
+        generWhereBean(paramKeyJoin);
+        generMethod(paramKeyJoin);
+    }
+
+    /**
+     * 更新处理
+     */
+    function batcbUpdate(sqlStr){
+        var setIndx=sqlStr.indexOf("set ");
+        var whereIndx=sqlStr.indexOf("where");
+        var setBeforeSqlStr=sqlStr.substring(0,setIndx);
+        var whereAfterSqlStr=sqlStr.substring(whereIndx);
+        var updateField=sqlStr.substring(setIndx+"set ".length,whereIndx);
+        var reg=/ *, */g;
+        updateField=replaceReg(updateField,reg,",");
+        reg=/ *\. */g;
+        updateField=replaceReg(updateField,reg,".");
+        var updateFieldArr=updateField.split(",");
+        var updateSqlStr=setBeforeSqlStr+="\n<set>";
+        var sqlParamName=getSqlParamName();
+        for(var i in updateFieldArr){
+            var fieldParaStr=updateFieldArr[i];
+            var equalIndx=fieldParaStr.indexOf("=");
+            fieldParaStr=fieldParaStr.substring(0,equalIndx);
+            var beanParamStr=fieldToBeanParamName(fieldParaStr);
+            updateSqlStr += "\n" + "<if test=\"" +sqlParamName+ beanParamStr + "!=null";
+            if(checkFieldType(fieldParaStr)=="String"){
+                updateSqlStr +=" and "+sqlParamName+beanParamStr+"!=''\">";
+            }else{
+                updateSqlStr+=">";
+            }
+            updateSqlStr+="\n"+fieldParaStr+generKeyJoinFun("=",beanParamStr)+",";
+            updateSqlStr+="\n</if>";
+        }
+        updateSqlStr+="\n</set>\n"+whereAfterSqlStr;
+        console.log("批量更新SQL："+updateSqlStr);
+        return updateSqlStr;
+    }
+
+    //======================================================mybatis转SQL处理函数===================================================
+    /**
      * mybatis转SQL按钮单击事件
-    */
+     */
     $("#toSqlBtn").click(function(){
         var mybatisSql=$("#mybatisSqlText").val();
         var sqlParamVal=$("#mybatisParamVals").val();
@@ -570,40 +740,7 @@ layui.use(['layer', 'element'],function() {
         console.log("mybatis转SQL："+sqlStr);
     }
 
-    /**
-     * 调用函数语句的生成
-     * @param mapKeysStr
-     * @returns {string}
-     */
-    function generMethod(mapKeysStr){
-        var selectId=$("#sqlId").val();
-        var javaParamName=$("#sqlParaName").val();
-        var methodContent="public "+getResultClassName()+" "+selectId+"(";
-        if(javaParamName){
-            methodContent+="@Param(\""+javaParamName+"\") "+getWhereClassName()+" "+javaParamName+");";;
-        }else{
-            if(mapKeysStr.length>0){
-                mapKeysStr=mapKeysStr.substring(0,mapKeysStr.length-1);
-                var keyArr=mapKeysStr.split(",");
-                var methodParamStr="";
-                for(var i=0;i<keyArr.length;i++){
-                    var fieldStr=keyArr[i];//.toLowerCase();
-                    methodParamStr+="@Param(\""+fieldStr+"\") ";
-                    methodParamStr+=checkFieldType(fieldStr)+" ";
-                    methodParamStr+=fieldStr+",";
-                }
-                if(methodParamStr.length>0){
-                    methodParamStr=methodParamStr.substring(0,methodParamStr.length-1);
-                }
-                methodContent+=methodParamStr+")";
-            }
-        }
-        $("#callMethod").html(methodContent);
-        $("#callMethod").show();
-        console.log("调用方法体："+methodContent);
-        return methodContent;
-    }
-
+    //======================================================公用函数===================================================
     /**
      * 根据规则判断字段类型
      * @param fieldStr
@@ -671,6 +808,45 @@ layui.use(['layer', 'element'],function() {
         return sqlParamName;
     }
 
+
+    /**
+     * 结果集类的类名生成
+     * @returns {string}
+     */
+    var getResultClassName=function(){
+        return "ResultBeanTemplate";
+    }
+
+    /**
+     * where条件类的类名生成
+     * @returns {string}
+     */
+    var getWhereClassName=function(){
+        return "WhereBeanTemplate";
+    }
+
+    /**
+     * 类型判断
+     * @param paramMapVal
+     * @returns {string}
+     */
+    function checkSqlParamType(paramMapVal){
+        var leftBracketsIndx=paramMapVal.lastIndexOf("(");
+        var paramType="'";
+        var paramVal=paramMapVal;
+        if(leftBracketsIndx>0){
+            var paramMapType=paramMapVal.substring(leftBracketsIndx+1,paramMapVal.length-1);
+            paramVal=paramMapVal.substring(0,leftBracketsIndx);
+            if(paramMapType=="String"){
+                paramType="'";
+            }else if(paramMapType=="Long"||paramMapType=="Boolean"||paramMapType=="Byte"){
+                paramType="";
+            }
+        }
+        return paramVal+","+paramType;
+    }
+
+    //======================================================工具函数===================================================
     /**
      * 清除字符串头尾空格
      * @param str
@@ -723,40 +899,18 @@ layui.use(['layer', 'element'],function() {
     }
 
     /**
-     * 结果集类的类名生成
-     * @returns {string}
+     * 判断日期字符串是否为日期格式
+     * @param dateStr
+     * @returns {boolean}
+     * @constructor
      */
-    var getResultClassName=function(){
-        return "ResultBeanTemplate";
-    }
-
-    /**
-     * where条件类的类名生成
-     * @returns {string}
-     */
-    var getWhereClassName=function(){
-        return "WhereBeanTemplate";
-    }
-
-
-    /**
-     * 类型判断
-     * @param paramMapVal
-     * @returns {string}
-     */
-    function checkSqlParamType(paramMapVal){
-        var leftBracketsIndx=paramMapVal.lastIndexOf("(");
-        var paramType="'";
-        var paramVal=paramMapVal;
-        if(leftBracketsIndx>0){
-            var paramMapType=paramMapVal.substring(leftBracketsIndx+1,paramMapVal.length-1);
-            paramVal=paramMapVal.substring(0,leftBracketsIndx);
-            if(paramMapType=="String"){
-                paramType="'";
-            }else if(paramMapType=="Long"||paramMapType=="Boolean"||paramMapType=="Byte"){
-                paramType="";
-            }
-        }
-        return paramVal+","+paramType;
+    function isDate(dateStr) {
+        var date = dateStr;
+        date=replaceAll(date,"'","");
+        var result = date.match(/^(\d{1,4})(-|\/)(\d{1,2})\2(\d{1,2})$/);
+        if (result == null)
+            return false;
+        var d = new Date(result[1], result[3] - 1, result[4]);
+        return (d.getFullYear() == result[1] && (d.getMonth() + 1) == result[3] && d.getDate() == result[4]);
     }
 });
