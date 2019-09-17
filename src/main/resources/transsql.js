@@ -155,6 +155,9 @@ layui.use(['layer', 'element'],function() {
         reg=/from_unixtime\s*\((.*?)\)/ig;
         result=sqlStr.match(reg);
         sqlStr=replaceDateJsonBuild(sqlStr,result,"from_unixtime");
+        reg=/str_to_date\s*\((.*?)\)/ig;
+        result=sqlStr.match(reg);
+        sqlStr=replaceDateJsonBuild(sqlStr,result,"str_to_date");
         return sqlStr;
     }
 
@@ -300,11 +303,8 @@ layui.use(['layer', 'element'],function() {
                 beforeStr+="\">";
             }
         }
-        beforeStr += "\n" + "	" + sqlCondKeyStr + " ";
+        beforeStr += "\n" + "	" + " ";
 
-        if(sqlKeyStr.toUpperCase()!="LOCATE"){
-            beforeStr+= fieldStr
-        }
         beforeStr+=" " + generKeyJoinFun(sqlKeyStr, fieldParaStr,whereStageStr) + "\n</if>";
         if(sqlKeyStr.toUpperCase()=="IN"){
             mapKeys=mapKeys+fieldParaStr+"List,";
@@ -436,7 +436,7 @@ layui.use(['layer', 'element'],function() {
      * @returns {number}
      */
     function cutOutRelationOperator(str){
-        var matchStrArr=[" >="," <="," ="," !="," >"," <"," like"," not in"," in"," locate"];
+        var matchStrArr=[" >="," <="," ="," !="," >"," <"," like"," not in"," in"," locate"," startend"];
         var lowerStr=str.toLowerCase();
         var operatorStr="";
         for(var i in matchStrArr){
@@ -456,26 +456,22 @@ layui.use(['layer', 'element'],function() {
     function generKeyJoinFun(key,fieldPara,whereStageStr){
         var objName=getSqlParamName();
         key=key.toUpperCase();
+        whereStageStr=enterToSpace(whereStageStr);
+        whereStageStr=muliSpaceToOne(whereStageStr);
         var keyJoinStr="";
         var generJoinStr="#{"+objName+fieldPara+"}";
-        if(key.indexOf("=")>-1||key.indexOf(">")>-1||key.indexOf("<")>-1){
-            //keyJoinStr="= #{"+objName+fieldPara+"}";
-            keyJoinStr=whereStageStr.replace("?",generJoinStr);
-        }else if(key=="LIKE"){
+        if(key=="LIKE"){
             keyJoinStr="LIKE concat(concat('%',#{"+objName+fieldPara+"}),'%')";
         }else if(key=="IN"||key=="NOT IN"){
             //keyJoinStr="IN :"+fieldPara;
-            keyJoinStr="IN \n\t<foreach item=\""+fieldPara+"\" index=\"index\" " +
+            generJoinStr="\n\t<foreach item=\""+fieldPara+"\" index=\"index\" " +
                 "collection=\"" +objName+fieldPara+"List\" " +
                 "open=\"(\" separator=\",\" close=\")\">\n\t\t#{"+fieldPara+"}\n\t</foreach>";
-        }else if(key=="LOCATE"){
-            //keyJoinStr="LOCATE (#{"+objName+fieldPara+"},"+fieldStr+")";
             keyJoinStr=whereStageStr.replace("?",generJoinStr);
         }else if(key=="STARTEND"){
             keyJoinStr="BETWEEN #{"+objName+fieldPara+"Start} and #{"+objName+fieldPara+"End}";
         }else{
-            //keyJoinStr=rtrim(key)+"#{"+objName+fieldPara+"}";
-            keyJoinStr=whereStageStr.replace("?",generJoinStr);
+            keyJoinStr=(whereStageStr.replace("?",generJoinStr));
         }
         return keyJoinStr;
     }
@@ -912,5 +908,16 @@ layui.use(['layer', 'element'],function() {
             return false;
         var d = new Date(result[1], result[3] - 1, result[4]);
         return (d.getFullYear() == result[1] && (d.getMonth() + 1) == result[3] && d.getDate() == result[4]);
+    }
+
+    /**
+     * 换行符转换为空格
+     * @param str
+     */
+    function enterToSpace(str){
+        str = str.replace(/\r\n/g," ");
+        str = str.replace(/\n/g," ");
+        str = str.replace(/\t/g," ");
+        return str;
     }
 });
