@@ -47,7 +47,6 @@ layui.use(['layer', 'element'],function() {
         reg=/\s+in\s+\((.*?)\)/ig;
         str=replaceSpecial(str,reg,' in ?')
         console.log("替换IN后的SQL："+str);
-        generBean(str);
         mapKeys="";
         $("#beanDiv").css("display","block");
         var whereStr=str;
@@ -57,9 +56,13 @@ layui.use(['layer', 'element'],function() {
         whereStr=whereStr.replace(/\? *'/g,"?");
         //update特殊处理
         var updateFlag=false;
-        if(whereStr.toUpperCase().indexOf("UPDATE")==0){
-            whereStr=batcbUpdate(whereStr);
+        if(whereStr.toUpperCase().search(/\s*UPDATE/i)==0){
+            whereStr=batchUpdate(whereStr);
             updateFlag=true;
+            $("#resultBean").html("");
+        }
+        if(updateFlag==false){
+            generBean(str);
         }
         var findWhereStr=whereStr.toUpperCase();
         var findEnabled=checkSqlFirstCondition(findWhereStr,0);
@@ -571,7 +574,7 @@ layui.use(['layer', 'element'],function() {
     function generBean(sqlStr){
         sqlStr=replaceAll(sqlStr," from "," FROM ");
         sqlStr=replaceAll(sqlStr,"select ","SELECT ");
-        var fromIndx=sqlStr.indexOf(" FROM ");
+        var fromIndx=sqlStr.search(/\s+from\s+/i);
         var colArrStr=sqlStr.substring("SELECT".length,fromIndx);
         var reg=/ *, */g;
         colArrStr=replaceReg(colArrStr,reg,",");
@@ -592,7 +595,7 @@ layui.use(['layer', 'element'],function() {
         var result=colArrStr.match(reg);
         if(result){
             for(var i in result){
-                var dotIndex=result[i].indexOf(",");
+                var dotIndex=result[i].indexOf(dateIdentStr);
                 var leftBrackets=result[i].indexOf("(");
                 var fieldName=trim(result[i].substring(leftBrackets+1,dotIndex));
                 colArrStr=colArrStr.replace(result[i],fieldName);
@@ -655,6 +658,46 @@ layui.use(['layer', 'element'],function() {
         return methodContent;
     }
 
+    /**
+     * insert方法调用生成
+     */
+    function generMethodByInsert(){
+        var nameJson=getParamNameByInsert();
+        var objName=nameJson.objName;
+        var className=nameJson.className;
+        var selectId=$("#sqlId").val();
+        var methodContent="public void "+selectId+"(@Param("+objName+") List&lt;"+className+"&gt; "+objName+");";
+        $("#callMethod").html(methodContent);
+        $("#callMethod").show();
+    }
+
+    function getParamNameByInsert(){
+        var nameJson={};
+        var objName=$("#sqlParaName").val();
+        objName=objName.substring(0,1).toLowerCase()+objName.substring(1);
+        var className=objName;
+        var itemName;
+        if(objName.substring(objName.length-4).toLowerCase()!="list"){
+            objName=objName+"List";
+        }else{
+            objName=objName.substring(0,objName.length-4)+"List";
+            className=objName.substring(0,objName.length-4);
+        }
+        if(objName.substring(objName.length-6).toLowerCase()=="bolist"){
+            objName=objName.substring(0,objName.length-6)+"List";
+            className=objName.substring(0,objName.length-4);
+        }
+        if(className.substring(className.length-2).toLowerCase()!="bo"){
+            className=className+"BO";
+        }
+        itemName=className.substring(0,className.length-2);
+        className=className.substring(0,1).toUpperCase()+className.substring(1);
+        nameJson.objName=objName;
+        nameJson.className=className;
+        nameJson.itemName=itemName;
+        return nameJson;
+    }
+
     //======================================================批量插入和批量更新处理函数===================================================
     /**
      * 批量插入处理
@@ -668,11 +711,18 @@ layui.use(['layer', 'element'],function() {
         var fieldArr=fields.split(",");
         var itemStr="";
         var sqlParamName=getSqlParamName();
+        if(sqlParamName==""){
+            alert("insert必须输入对象名！");
+            return;
+        }
+        var nameJson=getParamNameByInsert();
+        var objName=nameJson.objName;
+        var itemName=nameJson.itemName;
         var paramKeyJoin="";
-        var paramKey="";
+        var paramKey;
         for(var i in fieldArr){
             paramKey=fieldToBeanParamName(fieldArr[i]);
-            itemStr+="#{"+sqlParamName+paramKey+"},";
+            itemStr+="#{"+itemName+"."+paramKey+"},";
             paramKeyJoin=paramKeyJoin+paramKey+",";
         }
         if(itemStr.length>0){
@@ -680,20 +730,20 @@ layui.use(['layer', 'element'],function() {
         }
         var valuesStrIndex=insertSql.indexOf("(",fieldEndIndex+1);
         var buildSql=insertSql.substring(0,valuesStrIndex);
-        buildSql+="\n<foreach collection =\"list\" item=\"item\" separator =\",\">\n" +
+        buildSql+="\n<foreach collection =\""+objName+"\" item=\""+itemName+"\" separator =\",\">\n" +
             "\t("+itemStr+")\n" +
             "</foreach >";
         $("#mybatisText").val(buildSql);
         $("#resultBean").html("");
         $("#resultBean").show();
         generWhereBean(paramKeyJoin);
-        generMethod(paramKeyJoin);
+        generMethodByInsert();
     }
 
     /**
      * 更新处理
      */
-    function batcbUpdate(sqlStr){
+    function batchUpdate(sqlStr){
         var setIndx=sqlStr.indexOf("set ");
         var whereIndx=sqlStr.indexOf("where");
         var setBeforeSqlStr=sqlStr.substring(0,setIndx);
@@ -717,7 +767,7 @@ layui.use(['layer', 'element'],function() {
             }else{
                 updateSqlStr+=">";
             }
-            updateSqlStr+="\n"+fieldParaStr+generKeyJoinFun("=",beanParamStr)+",";
+            updateSqlStr+="\n\t"+generKeyJoinFun("=",beanParamStr,updateFieldArr[i])+",";
             updateSqlStr+="\n</if>";
         }
         updateSqlStr+="\n</set>\n"+whereAfterSqlStr;
@@ -929,8 +979,11 @@ layui.use(['layer', 'element'],function() {
      * @returns {string | void}
      */
     var muliSpaceToOne=function(str){
-        var reg = /\s+/g;
-        return str.replace(reg,' ');
+        if(str){
+            var reg = /\s+/g;
+            return str.replace(reg,' ');
+        }
+        return str;
     }
 
     /**
@@ -954,9 +1007,11 @@ layui.use(['layer', 'element'],function() {
      * @param str
      */
     function enterToSpace(str){
-        str = str.replace(/\r\n/g," ");
-        str = str.replace(/\n/g," ");
-        str = str.replace(/\t/g," ");
+        if(str){
+            str = str.replace(/\r\n/g," ");
+            str = str.replace(/\n/g," ");
+            str = str.replace(/\t/g," ");
+        }
         return str;
     }
 });
