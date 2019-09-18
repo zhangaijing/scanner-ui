@@ -6,6 +6,8 @@ layui.use(['layer', 'element'],function() {
     var replaceDateJson={};
     var dateIdentStr="@@@";
     var datePlaceholder="use@date@placeholder";
+    var mapKeys;
+    var betweenAlias="BETWAND";
     /**
      * SQL转Mybatis按钮单击事件
      */
@@ -88,11 +90,16 @@ layui.use(['layer', 'element'],function() {
         while(queIndex!=-1){
             var queAfterStr=afterStr.substring(queIndex+1);
             var queAfterFirstSpaceIndex=queAfterStr.search(/\s+/i);
-            if(queAfterFirstSpaceIndex>0){
+            if(queAfterFirstSpaceIndex>-1){
                 queIndex=queIndex+queAfterFirstSpaceIndex;
+            }else{
+                queAfterFirstSpaceIndex=queAfterStr.indexOf(")");
+                if(queAfterFirstSpaceIndex>-1){
+                    queIndex=queIndex+queAfterFirstSpaceIndex+1;
+                }
             }
             var beforeStr=afterStr.substring(0,queIndex+1);
-            beforeStr=repalceFun(beforeStr);
+            beforeStr=replaceFun(beforeStr);
             afterStr=afterStr.substring(queIndex+1);
             sqlStr+=beforeStr;
             queIndex=afterStr.indexOf("?");
@@ -138,9 +145,33 @@ layui.use(['layer', 'element'],function() {
      */
     function replaceBetween(whereStr){
         var reg=/between(.*?)and\s+(.*?)\?(.*?)\)(.*?)\s*/ig;
-        whereStr=replaceSpecial(whereStr,reg,"startend ? ");
+        whereStr=replaceBetweenOption(whereStr,reg);
         reg=/between(.*?)and\s+(.*?)\?(.*?)\s*/ig;
-        whereStr=replaceSpecial(whereStr,reg,"startend ? ");
+        whereStr=replaceBetweenOption(whereStr,reg);
+        return whereStr;
+    }
+
+    /**
+     * 替换between具体处理函数
+     * @param whereStr
+     * @param reg
+     * @returns {*}
+     */
+    function replaceBetweenOption(whereStr,reg){
+        var result=whereStr.match(reg);
+        var betweenStr="between ";
+        var andStr=" and "
+        if(result){
+            for(var i in result){
+                var matchStr=result[i];
+                var tempStr=matchStr.toLowerCase();
+                var andIndex=tempStr.indexOf(andStr);
+                var betweenIndex=tempStr.indexOf(betweenStr);
+                var betweenWhereStr=trim(matchStr.substring(betweenIndex+betweenStr.length,andIndex));
+                var betweenReplaceStr=betweenAlias+" "+betweenWhereStr+" ";
+                whereStr=whereStr.replace(matchStr,betweenReplaceStr);
+            }
+        }
         return whereStr;
     }
 
@@ -151,13 +182,13 @@ layui.use(['layer', 'element'],function() {
         var sqlStr=nowTrans(sqlStr);
         var reg=/date_format\s*\((.*?)\)/ig;
         var result=sqlStr.match(reg);
-        sqlStr=replaceDateJsonBuild(sqlStr,result,"date_format");
+        sqlStr=replaceDateJsonBuild(sqlStr,result);
         reg=/from_unixtime\s*\((.*?)\)/ig;
         result=sqlStr.match(reg);
-        sqlStr=replaceDateJsonBuild(sqlStr,result,"from_unixtime");
+        sqlStr=replaceDateJsonBuild(sqlStr,result);
         reg=/str_to_date\s*\((.*?)\)/ig;
         result=sqlStr.match(reg);
-        sqlStr=replaceDateJsonBuild(sqlStr,result,"str_to_date");
+        sqlStr=replaceDateJsonBuild(sqlStr,result);
         return sqlStr;
     }
 
@@ -225,7 +256,8 @@ layui.use(['layer', 'element'],function() {
     function dateRestore(sqlStr){
         for(var key in replaceDateJson){
             var keyIndex=sqlStr.indexOf(key);
-            sqlStr=sqlStr.replace(key,replaceDateJson[key]);
+            //sqlStr=sqlStr.replace(key,replaceDateJson[key]);
+            sqlStr=replaceAll(sqlStr,key,replaceDateJson[key]);
         }
         sqlStr=replaceAll(sqlStr,"now_brackets","now()");
         return sqlStr;
@@ -267,8 +299,8 @@ layui.use(['layer', 'element'],function() {
     /**
      * 替换SQL条件标识符
      */
-    function repalceFun(sqlWhereStageStr) {
-        beforeStr = rtrim(sqlWhereStageStr);
+    function replaceFun(sqlWhereStageStr) {
+        var beforeStr = rtrim(sqlWhereStageStr);
         beforeStr = spaceOptFun(beforeStr);
         var firstSpaceLastInd = beforeStr.lastIndexOf(" ");
         //var sqlKeyStr = trim(beforeStr.substring(firstSpaceLastInd));
@@ -292,7 +324,7 @@ layui.use(['layer', 'element'],function() {
             beforeStr += "\n" + "<if test=\"" + objName+fieldParaStr + "List !=null";
             beforeStr+=" and "+objName+fieldParaStr+"List.size()>0";
             beforeStr+="\">";
-        }else if(sqlKeyStr.toUpperCase()=="STARTEND"){
+        }else if(sqlKeyStr.toUpperCase()==betweenAlias){
             beforeStr += "\n" + "<if test=\"" + objName+fieldParaStr + "Start !=null and "+objName+fieldParaStr+"End !=null";
             beforeStr+="\">";
         }else{
@@ -304,11 +336,10 @@ layui.use(['layer', 'element'],function() {
             }
         }
         beforeStr += "\n" + "	" + " ";
-
         beforeStr+=" " + generKeyJoinFun(sqlKeyStr, fieldParaStr,whereStageStr) + "\n</if>";
         if(sqlKeyStr.toUpperCase()=="IN"){
             mapKeys=mapKeys+fieldParaStr+"List,";
-        }else if(sqlKeyStr.toUpperCase()=="STARTEND"){
+        }else if(sqlKeyStr.toUpperCase()==betweenAlias){
             mapKeys=mapKeys+fieldParaStr+"Start,"+fieldParaStr+"End,";
         }else{
             mapKeys = mapKeys + fieldParaStr + ",";
@@ -374,7 +405,7 @@ layui.use(['layer', 'element'],function() {
      */
     function cutOutFieldNameAndCondiKey(str){
         var returnJson={};
-        var matchStrArr=["between ","and ","or "];
+        var matchStrArr=["and ","or "];
         var lowerStr=str.toLowerCase();
         var matchIndexArr=[];
         for(var i in matchStrArr){
@@ -436,11 +467,11 @@ layui.use(['layer', 'element'],function() {
      * @returns {number}
      */
     function cutOutRelationOperator(str){
-        var matchStrArr=[" >="," <="," ="," !="," >"," <"," like"," not in"," in"," locate"," startend"];
+        var matchStrArr=[" >="," <="," ="," !="," >"," <"," like"," not in"," in"," locate"," "+betweenAlias];
         var lowerStr=str.toLowerCase();
         var operatorStr="";
         for(var i in matchStrArr){
-            var operatorIndex=lowerStr.lastIndexOf(matchStrArr[i]);
+            var operatorIndex=lowerStr.lastIndexOf(matchStrArr[i].toLowerCase());
             if(operatorIndex>0){
                 operatorStr=trim(matchStrArr[i]);
                 break;
@@ -468,8 +499,16 @@ layui.use(['layer', 'element'],function() {
                 "collection=\"" +objName+fieldPara+"List\" " +
                 "open=\"(\" separator=\",\" close=\")\">\n\t\t#{"+fieldPara+"}\n\t</foreach>";
             keyJoinStr=whereStageStr.replace("?",generJoinStr);
-        }else if(key=="STARTEND"){
-            keyJoinStr="BETWEEN #{"+objName+fieldPara+"Start} and #{"+objName+fieldPara+"End}";
+        }else if(key==betweenAlias){
+            var betweenIndex=whereStageStr.search(/betwand/i);
+            var betweenWhereStr=whereStageStr.substring(betweenIndex+betweenAlias.length);
+            var replaceBetweenBeforeWhereStr=betweenWhereStr.replace("?","#{"+objName+fieldPara+"Start}");
+            var replaceBetweenAfterWhereStr=betweenWhereStr.replace("?","#{"+objName+fieldPara+"End}");
+            generJoinStr=replaceBetweenBeforeWhereStr+" and "+replaceBetweenAfterWhereStr;
+            var betweenWhereBeforeStr=whereStageStr.substring(0,betweenIndex+betweenAlias.length);
+            betweenWhereBeforeStr=betweenWhereBeforeStr.replace(betweenAlias,"BETWEEN");
+            generJoinStr=betweenWhereBeforeStr+" "+generJoinStr;
+            keyJoinStr=generJoinStr;
         }else{
             keyJoinStr=(whereStageStr.replace("?",generJoinStr));
         }
@@ -903,11 +942,11 @@ layui.use(['layer', 'element'],function() {
     function isDate(dateStr) {
         var date = dateStr;
         date=replaceAll(date,"'","");
-        var result = date.match(/^(\d{1,4})(-|\/)(\d{1,2})\2(\d{1,2})$/);
-        if (result == null)
+        if(isNaN(date)&&!isNaN(Date.parse(date))){
+            return true;
+        }else{
             return false;
-        var d = new Date(result[1], result[3] - 1, result[4]);
-        return (d.getFullYear() == result[1] && (d.getMonth() + 1) == result[3] && d.getDate() == result[4]);
+        }
     }
 
     /**
