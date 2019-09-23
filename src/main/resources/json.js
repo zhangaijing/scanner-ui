@@ -5,5 +5,6 @@ var serviceConfig={
     "hoolink-command":"9995",
     "hoolink-ability":"9990",
     "hoolink-mdc":"9988",
-    "hoolink-schedule":"6656"
+    "hoolink-schedule":"6656",
+    "hoolink-app-rpc":"9985"
 }
