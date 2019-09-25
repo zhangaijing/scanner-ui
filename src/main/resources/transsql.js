@@ -56,12 +56,17 @@ layui.use(['layer', 'element'],function() {
         whereStr=whereStr.replace(/\? *'/g,"?");
         //update特殊处理
         var updateFlag=false;
+        var deleteFlag=false;
         if(whereStr.toUpperCase().search(/\s*UPDATE/i)==0){
             whereStr=batchUpdate(whereStr);
             updateFlag=true;
             $("#resultBean").html("");
         }
-        if(updateFlag==false){
+        if(whereStr.toUpperCase().search(/\s*DELETE/i)==0){
+            deleteFlag=true;
+            $("#resultBean").html("");
+        }
+        if(updateFlag==false&&deleteFlag==false){
             generBean(str);
         }
         var findWhereStr=whereStr.toUpperCase();
@@ -113,18 +118,27 @@ layui.use(['layer', 'element'],function() {
             sqlStr=whereStr;
         var sqlBeforeFlagStr="";
         var sqlAfterFlagStr="";
+        var resultTypeStr=" resultType=\"beanTemplate\"";
+        var methodReturnTypeVoidFlag=false;
         if(updateFlag){
             sqlBeforeFlagStr="<update";
             sqlAfterFlagStr="</update>";
+            resultTypeStr="";
+            methodReturnTypeVoidFlag=true;
+        }else if(deleteFlag){
+            sqlBeforeFlagStr="<delete";
+            sqlAfterFlagStr="</delete>";
+            resultTypeStr="";
+            methodReturnTypeVoidFlag=true;
         }else{
             sqlBeforeFlagStr="<select";
             sqlAfterFlagStr="</select>";
         }
-        sqlStr=sqlBeforeFlagStr+" id=\""+$("#sqlId").val()+"\" resultType=\"beanTemplate\">\n"+sqlStr+"\n"+sqlAfterFlagStr;
+        sqlStr=sqlBeforeFlagStr+" id=\""+$("#sqlId").val()+"\""+resultTypeStr+">\n"+sqlStr+"\n"+sqlAfterFlagStr;
         sqlStr=dateRestore(sqlStr);
         $("#mybatisText").val(sqlStr);
         generWhereBean(mapKeys);
-        generMethod(mapKeys);
+        generMethod(mapKeys,methodReturnTypeVoidFlag);
     });
 
     /**
@@ -629,12 +643,15 @@ layui.use(['layer', 'element'],function() {
      * @param mapKeysStr
      * @returns {string}
      */
-    function generMethod(mapKeysStr){
+    function generMethod(mapKeysStr,voidFlag){
         var selectId=$("#sqlId").val();
         var javaParamName=$("#sqlParaName").val();
-        var methodContent="public "+getResultClassName()+" "+selectId+"(";
+        var methodContent=getResultClassName(voidFlag)+" "+selectId+"(";
         if(javaParamName){
-            methodContent+="@Param(\""+javaParamName+"\") "+getWhereClassName()+" "+javaParamName+");";;
+            var nameJson=getParamName();
+            var objName=nameJson.objName;
+            var className=nameJson.className;
+            methodContent+="@Param(\""+objName+"\") "+className+" "+objName+");";
         }else{
             if(mapKeysStr.length>0){
                 mapKeysStr=mapKeysStr.substring(0,mapKeysStr.length-1);
@@ -662,39 +679,57 @@ layui.use(['layer', 'element'],function() {
      * insert方法调用生成
      */
     function generMethodByInsert(){
-        var nameJson=getParamNameByInsert();
+        var nameJson=getParamName("insert");
         var objName=nameJson.objName;
         var className=nameJson.className;
         var selectId=$("#sqlId").val();
-        var methodContent="public void "+selectId+"(@Param("+objName+") List&lt;"+className+"&gt; "+objName+");";
+        var methodContent="void "+selectId+"(@Param("+objName+") List&lt;"+className+"&gt; "+objName+");";
         $("#callMethod").html(methodContent);
         $("#callMethod").show();
     }
 
-    function getParamNameByInsert(){
+    /**
+     * 根据输入的对象名生成对象名和类名
+     * @param type
+     */
+    function getParamName(type){
         var nameJson={};
         var objName=$("#sqlParaName").val();
-        objName=objName.substring(0,1).toLowerCase()+objName.substring(1);
-        var className=objName;
-        var itemName;
-        if(objName.substring(objName.length-4).toLowerCase()!="list"){
-            objName=objName+"List";
+        if(objName){
+            objName=objName.substring(0,1).toLowerCase()+objName.substring(1);
+            var className=objName;
+            var itemName;
+            if(type=="insert"){
+                if(objName.substring(objName.length-4).toLowerCase()!="list"){
+                    objName=objName+"List";
+                }else{
+                    objName=objName.substring(0,objName.length-4)+"List";
+                    className=objName.substring(0,objName.length-4);
+                }
+                if(objName.substring(objName.length-6).toLowerCase()=="bolist"){
+                    objName=objName.substring(0,objName.length-6)+"List";
+                    className=objName.substring(0,objName.length-4);
+                }
+            }else{
+                if(objName.substring(objName.length-2).toLowerCase()=="bo"){
+                    objName=objName.substring(0,objName.length-2);
+                }
+            }
+            if(className.substring(className.length-2).toLowerCase()!="bo"){
+                className=className+"BO";
+            }else{
+                className=className.substring(0,className.length-2)+"BO";
+            }
+            itemName=className.substring(0,className.length-2);
+            className=className.substring(0,1).toUpperCase()+className.substring(1);
+            nameJson.objName=objName;
+            nameJson.className=className;
+            nameJson.itemName=itemName;
         }else{
-            objName=objName.substring(0,objName.length-4)+"List";
-            className=objName.substring(0,objName.length-4);
+            nameJson.objName="";
+            nameJson.className="";
+            nameJson.itemName="";
         }
-        if(objName.substring(objName.length-6).toLowerCase()=="bolist"){
-            objName=objName.substring(0,objName.length-6)+"List";
-            className=objName.substring(0,objName.length-4);
-        }
-        if(className.substring(className.length-2).toLowerCase()!="bo"){
-            className=className+"BO";
-        }
-        itemName=className.substring(0,className.length-2);
-        className=className.substring(0,1).toUpperCase()+className.substring(1);
-        nameJson.objName=objName;
-        nameJson.className=className;
-        nameJson.itemName=itemName;
         return nameJson;
     }
 
@@ -715,7 +750,7 @@ layui.use(['layer', 'element'],function() {
             alert("insert必须输入对象名！");
             return;
         }
-        var nameJson=getParamNameByInsert();
+        var nameJson=getParamName("insert");
         var objName=nameJson.objName;
         var itemName=nameJson.itemName;
         var paramKeyJoin="";
@@ -733,6 +768,8 @@ layui.use(['layer', 'element'],function() {
         buildSql+="\n<foreach collection =\""+objName+"\" item=\""+itemName+"\" separator =\",\">\n" +
             "\t("+itemStr+")\n" +
             "</foreach >";
+        var sqlIdVal=trim($("#sqlId").val());
+        buildSql="<insert id=\""+sqlIdVal+"\">\n"+buildSql+"\n</insert>";
         $("#mybatisText").val(buildSql);
         $("#resultBean").html("");
         $("#resultBean").show();
@@ -833,28 +870,29 @@ layui.use(['layer', 'element'],function() {
      */
     function checkFieldType(fieldStr){
         var typeStr="";
+        fieldStr=fieldStr.toLowerCase();
         if(fieldStr.length>1){
-            if(fieldStr=="id"||fieldStr.indexOf("_id")>0||fieldStr.substring(fieldStr.length-2).toLowerCase()=="id"){
+            if(fieldStr=="id"||fieldStr.indexOf("_id")>0||fieldStr.substring(fieldStr.length-2)=="id"){
                 typeStr="Long";
-            }else if(fieldStr.indexOf("status")>0){
-                typeStr="Byte";
-            }else if(fieldStr.indexOf("created")>0){
+            }else if(fieldStr.substring(fieldStr.length-5)=="start"||fieldStr.substring(fieldStr.length-3)=="end"){
                 typeStr="Long";
-            }else if(fieldStr.substring(fieldStr.length-3).toLowerCase()=="num"){
-                typeStr="Long";
-            }else if(fieldStr.substring(fieldStr.length-4).toLowerCase()=="date"){
-                typeStr="LocalDate";
-            }else if(fieldStr.substring(fieldStr.length-4).toLowerCase()=="time"){
-                typeStr="LocalTime";
-            }else if(fieldStr.substring(fieldStr.length-6).toLowerCase()=="status"){
-                typeStr="Byte";
-            }else if(fieldStr.substring(fieldStr.length-5).toLowerCase()=="start"||fieldStr.substring(fieldStr.length-3).toLowerCase()=="end"){
-                typeStr="Long";
-            }else if(fieldStr.substring(fieldStr.length-4).toLowerCase()=="list"){
+            }else if(fieldStr.substring(fieldStr.length-4)=="list"){
                 var itemTypeStr=fieldStr.substring(0,fieldStr.length-4);
                 itemTypeStr=checkFieldType(itemTypeStr);
                 typeStr="List&lt;"+itemTypeStr+"&gt;";
-            }else if(fieldStr.substring(fieldStr.length-7).toLowerCase()=="created"||fieldStr.substring(fieldStr.length-7).toLowerCase()=="creator"){
+            }else if(fieldStr.indexOf("status")>0||fieldStr.indexOf("type")>0){
+                typeStr="Byte";
+            }else if(fieldStr.indexOf("created")>0){
+                typeStr="Long";
+            }else if(fieldStr.substring(fieldStr.length-3)=="num"){
+                typeStr="Long";
+            }else if(fieldStr.substring(fieldStr.length-4)=="date"){
+                typeStr="LocalDate";
+            }else if(fieldStr.substring(fieldStr.length-4)=="time"){
+                typeStr="LocalTime";
+            }else if(fieldStr.substring(fieldStr.length-6)=="status"){
+                typeStr="Byte";
+            }else if(fieldStr.substring(fieldStr.length-7)=="created"||fieldStr.substring(fieldStr.length-7)=="creator"){
                 typeStr="Long";
             }else{
                 typeStr="String";
@@ -884,9 +922,9 @@ layui.use(['layer', 'element'],function() {
      * @returns {*|void}
      */
     function getSqlParamName(){
-        var sqlParamName=$("#sqlParaName").val();
-        if(sqlParamName.length>0){
-            sqlParamName+=".";
+        var nameJson=getParamName();
+        if(nameJson.objName.length>0){
+            sqlParamName=nameJson.objName+".";
         }else{
             sqlParamName="";
         }
@@ -898,7 +936,11 @@ layui.use(['layer', 'element'],function() {
      * 结果集类的类名生成
      * @returns {string}
      */
-    var getResultClassName=function(){
+    var getResultClassName=function(voidFlag){
+        if(voidFlag){
+            $("#bean-div").html("");
+            return "void";
+        }
         return "ResultBeanTemplate";
     }
 
@@ -907,6 +949,10 @@ layui.use(['layer', 'element'],function() {
      * @returns {string}
      */
     var getWhereClassName=function(){
+        var nameJson=getParamName();
+        if(nameJson.className.length>0){
+            return nameJson.className;
+        }
         return "WhereBeanTemplate";
     }
 
