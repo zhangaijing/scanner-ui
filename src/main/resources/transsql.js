@@ -666,7 +666,7 @@ layui.use(['layer', 'element'],function() {
                 if(methodParamStr.length>0){
                     methodParamStr=methodParamStr.substring(0,methodParamStr.length-1);
                 }
-                methodContent+=methodParamStr+")";
+                methodContent+=methodParamStr+");";
             }
         }
         $("#callMethod").html(methodContent);
@@ -683,7 +683,7 @@ layui.use(['layer', 'element'],function() {
         var objName=nameJson.objName;
         var className=nameJson.className;
         var selectId=$("#sqlId").val();
-        var methodContent="void "+selectId+"(@Param("+objName+") List&lt;"+className+"&gt; "+objName+");";
+        var methodContent="void "+selectId+"(@Param(\""+objName+"\") List&lt;"+className+"&gt; "+objName+");";
         $("#callMethod").html(methodContent);
         $("#callMethod").show();
     }
