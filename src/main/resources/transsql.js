@@ -44,30 +44,61 @@ layui.use(['layer', 'element'],function() {
         //in 替换
         //reg=/\s+(\s*)in(.*?)\((.*?)\)\s+/ig;
         //reg=/\s+in\s+/ig;
-        reg=/\s+in\s+\((.*?)\)/ig;
-        str=replaceSpecial(str,reg,' in ?')
+        str=replaceIn(str);
         console.log("替换IN后的SQL："+str);
         mapKeys="";
         $("#beanDiv").css("display","block");
-        var whereStr=str;
-        whereStr=trim(whereStr);
-        whereStr=whereStr.replace(/' *\? *'/g,"?");//清除有单引号的情况
-        whereStr=whereStr.replace(/' *\?/g,"?");
-        whereStr=whereStr.replace(/\? *'/g,"?");
-        //update特殊处理
         var updateFlag=false;
         var deleteFlag=false;
-        if(whereStr.toUpperCase().search(/\s*UPDATE/i)==0){
-            whereStr=batchUpdate(whereStr);
+        if(str.toUpperCase().search(/\s*UPDATE/i)==0){
             updateFlag=true;
             $("#resultBean").html("");
         }
-        if(whereStr.toUpperCase().search(/\s*DELETE/i)==0){
+        if(str.toUpperCase().search(/\s*DELETE/i)==0){
             deleteFlag=true;
             $("#resultBean").html("");
         }
         if(updateFlag==false&&deleteFlag==false){
             generBean(str);
+        }
+        var sqlBeforeFlagStr="";
+        var sqlAfterFlagStr="";
+        var resultTypeStr=" resultType=\"beanTemplate\"";
+        var methodReturnTypeVoidFlag=false;
+        if(updateFlag){
+            sqlBeforeFlagStr="<update";
+            sqlAfterFlagStr="</update>";
+            resultTypeStr="";
+            methodReturnTypeVoidFlag=true;
+        }else if(deleteFlag){
+            sqlBeforeFlagStr="<delete";
+            sqlAfterFlagStr="</delete>";
+            resultTypeStr="";
+            methodReturnTypeVoidFlag=true;
+        }else{
+            sqlBeforeFlagStr="<select";
+            sqlAfterFlagStr="</select>";
+        }
+        var mybatisSqlStr=buildMybatisMainSql(str);
+        mybatisSqlStr=sqlBeforeFlagStr+" id=\""+$("#sqlId").val()+"\""+resultTypeStr+">\n"+mybatisSqlStr+"\n"+sqlAfterFlagStr;
+        $("#mybatisText").val(mybatisSqlStr);
+        generWhereBean(mapKeys);
+        generMethod(mapKeys,methodReturnTypeVoidFlag);
+    });
+
+    /**
+     * sql转mybatis主体函数
+     * @param str
+     */
+    function buildMybatisMainSql(str){
+        var whereStr=str;
+        whereStr=trim(whereStr);
+        whereStr=whereStr.replace(/' *\? *'/g,"?");//清除有单引号的情况
+        whereStr=whereStr.replace(/' *\?/g,"?");
+        whereStr=whereStr.replace(/\? *'/g,"?");
+        if(whereStr.toUpperCase().search(/\s*UPDATE/i)==0){
+            //update特殊处理
+            whereStr=batchUpdate(whereStr);
         }
         var findWhereStr=whereStr.toUpperCase();
         var findEnabled=checkSqlFirstCondition(findWhereStr,0);
@@ -116,30 +147,9 @@ layui.use(['layer', 'element'],function() {
         }
         if(sqlStr=="")
             sqlStr=whereStr;
-        var sqlBeforeFlagStr="";
-        var sqlAfterFlagStr="";
-        var resultTypeStr=" resultType=\"beanTemplate\"";
-        var methodReturnTypeVoidFlag=false;
-        if(updateFlag){
-            sqlBeforeFlagStr="<update";
-            sqlAfterFlagStr="</update>";
-            resultTypeStr="";
-            methodReturnTypeVoidFlag=true;
-        }else if(deleteFlag){
-            sqlBeforeFlagStr="<delete";
-            sqlAfterFlagStr="</delete>";
-            resultTypeStr="";
-            methodReturnTypeVoidFlag=true;
-        }else{
-            sqlBeforeFlagStr="<select";
-            sqlAfterFlagStr="</select>";
-        }
-        sqlStr=sqlBeforeFlagStr+" id=\""+$("#sqlId").val()+"\""+resultTypeStr+">\n"+sqlStr+"\n"+sqlAfterFlagStr;
         sqlStr=dateRestore(sqlStr);
-        $("#mybatisText").val(sqlStr);
-        generWhereBean(mapKeys);
-        generMethod(mapKeys,methodReturnTypeVoidFlag);
-    });
+        return sqlStr;
+    }
 
     /**
      * 替换locate---特殊处理
@@ -265,6 +275,31 @@ layui.use(['layer', 'element'],function() {
             }
         }
         return sqlStr;
+    }
+
+    /**
+     * 替换in---特殊处理
+     * @param SqlStr
+     * @returns {*}
+     */
+    var inReplaceJson={};
+    function replaceIn(SqlStr){
+        var str=SqlStr;
+        var reg=/\s+in\s+\((.*?)\)/ig;
+        var result=str.match(reg);
+        if(result){
+            var matchStr=result[0];
+            var inSelectreg=/select/ig;
+            var inSelectIndex=matchStr.search(inSelectreg);
+            if(inSelectIndex){
+                var inSelectSql=matchStr.substring(inSelectIndex,matchStr.length-1);
+                var inSelectMybatisSqlStr=buildMybatisMainSql(inSelectSql);
+                console.log("in里面替换后的mybatis："+inSelectMybatisSqlStr);
+                console.log("in里面的字符串："+inSelectSql);
+            }
+            str=replaceSpecial(SqlStr,reg,' in ?');
+        }
+        return str;
     }
 
     /**
