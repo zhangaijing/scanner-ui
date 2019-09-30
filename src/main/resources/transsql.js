@@ -3,11 +3,15 @@ layui.use(['layer', 'element'],function() {
         $ = layui.$,
         element = layui.element;
 
+    //日期还原json
     var replaceDateJson={};
+    //in还原json
+    var restoreInJson={};
     var dateIdentStr="@@@";
     var datePlaceholder="use@date@placeholder";
     var mapKeys;
     var betweenAlias="BETWAND";
+    var inPlaceholder="in@&@";
     /**
      * SQL转Mybatis按钮单击事件
      */
@@ -22,6 +26,7 @@ layui.use(['layer', 'element'],function() {
         }
         str=replaceEnabled(str);
         replaceDateJson={};
+        restoreInJson={};
         str=replaceDate(str);
         //字符串替换为'?'
         var reg = /\'(.*?)\'/g;
@@ -44,9 +49,9 @@ layui.use(['layer', 'element'],function() {
         //in 替换
         //reg=/\s+(\s*)in(.*?)\((.*?)\)\s+/ig;
         //reg=/\s+in\s+/ig;
+        mapKeys="";
         str=replaceIn(str);
         console.log("替换IN后的SQL："+str);
-        mapKeys="";
         $("#beanDiv").css("display","block");
         var updateFlag=false;
         var deleteFlag=false;
@@ -63,7 +68,8 @@ layui.use(['layer', 'element'],function() {
         }
         var sqlBeforeFlagStr="";
         var sqlAfterFlagStr="";
-        var resultTypeStr=" resultType=\"beanTemplate\"";
+        var tempJson=getSqlReturnClass();
+        var resultTypeStr=" resultType=\""+tempJson.packageClassName+"\"";
         var methodReturnTypeVoidFlag=false;
         if(updateFlag){
             sqlBeforeFlagStr="<update";
@@ -80,6 +86,7 @@ layui.use(['layer', 'element'],function() {
             sqlAfterFlagStr="</select>";
         }
         var mybatisSqlStr=buildMybatisMainSql(str);
+        mybatisSqlStr=inRestore(mybatisSqlStr);
         mybatisSqlStr=sqlBeforeFlagStr+" id=\""+$("#sqlId").val()+"\""+resultTypeStr+">\n"+mybatisSqlStr+"\n"+sqlAfterFlagStr;
         $("#mybatisText").val(mybatisSqlStr);
         generWhereBean(mapKeys);
@@ -120,7 +127,7 @@ layui.use(['layer', 'element'],function() {
         }
         whereStr=replaceSpecial(whereStr,/@=@/g,"1=1");
         whereStr=replaceLocate(whereStr);
-        console.log("替换loate后的字符串："+whereStr);
+        console.log("替换locate后的字符串："+whereStr);
         whereStr=replaceBetween(whereStr);
         console.log("替换between后的字符串："+whereStr);
         var afterStr=whereStr;
@@ -282,24 +289,58 @@ layui.use(['layer', 'element'],function() {
      * @param SqlStr
      * @returns {*}
      */
-    var inReplaceJson={};
     function replaceIn(SqlStr){
         var str=SqlStr;
         var reg=/\s+in\s+\((.*?)\)/ig;
         var result=str.match(reg);
         if(result){
-            var matchStr=result[0];
-            var inSelectreg=/select/ig;
-            var inSelectIndex=matchStr.search(inSelectreg);
-            if(inSelectIndex){
-                var inSelectSql=matchStr.substring(inSelectIndex,matchStr.length-1);
-                var inSelectMybatisSqlStr=buildMybatisMainSql(inSelectSql);
-                console.log("in里面替换后的mybatis："+inSelectMybatisSqlStr);
-                console.log("in里面的字符串："+inSelectSql);
+            var matchStr;
+            for(var i in result){
+                matchStr=result[i];
+                matchStr=moreBrackets(matchStr,SqlStr);
+                var inSelectreg=/select/ig;
+                var inSelectIndex=matchStr.search(inSelectreg);
+                var baseCode=97;
+                if(inSelectIndex>-1){
+                    var curCode=baseCode++;
+                    var curChar=String.fromCharCode(curCode);
+                    var inSelectSql=matchStr.substring(inSelectIndex,matchStr.length-1);
+                    //sql语句中有in的情况替换
+                    inSelectSql=replaceIn(inSelectSql);
+                    var inSelectMybatisSqlStr=buildMybatisMainSql(inSelectSql);
+                    var inPlaceholderReplace=inPlaceholder.replace("&",curChar);
+                    restoreInJson[inPlaceholderReplace]=inSelectMybatisSqlStr;
+                    str=str.replace(matchStr,inPlaceholderReplace);
+                    console.log("in里面替换后的mybatis："+inSelectMybatisSqlStr);
+                    console.log("in里面的字符串："+inSelectSql);
+                }else{
+                    //str=replaceSpecial(SqlStr,reg,' in ?');
+                    str=str.replace(matchStr,' in ?');
+                }
             }
-            str=replaceSpecial(SqlStr,reg,' in ?');
         }
         return str;
+    }
+
+    /**
+     * 多括号处理
+     * @param matchSqlStr
+     * @param allSqlStr
+     */
+    function moreBrackets(matchSqlStr,allSqlStr){
+        var bracketCount=0;
+        var bracketIndex=matchSqlStr.indexOf("(");
+        if(bracketIndex>0){
+            bracketCount++;
+            bracketIndex=matchSqlStr.indexOf("(",bracketIndex+1);
+        }
+        var matchSqlStrIndex=allSqlStr.indexOf(matchSqlStr);
+        var rightBracketIndex=matchSqlStrIndex+matchSqlStr.length;
+        for(var i=1;i<bracketCount;i++){
+            rightBracketIndex=allSqlStr.indexOf(")",rightBracketIndex+1);
+        }
+        var matchStr=allSqlStr.substring(matchSqlStrIndex,rightBracketIndex+1);
+        return matchStr;
     }
 
     /**
@@ -316,11 +357,32 @@ layui.use(['layer', 'element'],function() {
     }
 
     /**
+     * in处理替换为原来的sql语句
+     * @param sqlStr
+     */
+    function inRestore(sqlStr){
+        var reg=/in@(.*?)@/ig;
+        var result=sqlStr.match(reg);
+        if(result){
+            var matchReplaceStr;
+            var replaceSqlStr;
+            for(var i in result){
+                matchReplaceStr=result[i];
+                replaceSqlStr=restoreInJson[matchReplaceStr];
+                if(replaceSqlStr){
+                    sqlStr=sqlStr.replace(matchReplaceStr," in (\n"+replaceSqlStr+"\n)");
+                }
+            }
+        }
+        return sqlStr;
+    }
+
+    /**
      * 检测SQL语句是否需要自动添加1=1条件,0为不需要，非0为需要
      */
     function checkSqlFirstCondition(sqlStr,startIndx){
         var tempStartIndx=startIndx+2;
-        var tempSqlStr=sqlStr.substring(tempStartIndx)
+        var tempSqlStr=sqlStr.substring(tempStartIndx);
         var reg=/(where\s+enabled=)|(where\s+@=@)/i;
         result=tempSqlStr.match(reg);
         if(result){
@@ -651,24 +713,29 @@ layui.use(['layer', 'element'],function() {
             }
         }
         var colArr=colArrStr.split(",");
-        var beanStr="@Data<br/>public class "+getResultClassName()+" implements Serializable {<br/>";
-        var fieldStr="";
-        for(var i in colArr){
-            var colStr=trim(colArr[i]);
-            var asIndx=colStr.toUpperCase().indexOf(" AS ");
-            var spaceIndx=colStr.toUpperCase().indexOf(" ");
-            if(asIndx>0){
-                fieldStr=colStr.substring(asIndx+3);
-            }else if(spaceIndx>0){
-                fieldStr=colStr.substring(spaceIndx+1);
-            }else{
-                fieldStr=fieldToBeanParamName(colStr);
+        var tempJson=getSqlReturnClass();
+        if(tempJson.isBasic==false){
+            var beanStr="@Data<br/>public class "+tempJson.className+" implements Serializable {<br/>";
+            var fieldStr="";
+            for(var i in colArr){
+                var colStr=trim(colArr[i]);
+                var asIndx=colStr.toUpperCase().indexOf(" AS ");
+                var spaceIndx=colStr.toUpperCase().indexOf(" ");
+                if(asIndx>0){
+                    fieldStr=colStr.substring(asIndx+3);
+                }else if(spaceIndx>0){
+                    fieldStr=colStr.substring(spaceIndx+1);
+                }else{
+                    fieldStr=fieldToBeanParamName(colStr);
+                }
+                var fieldType=checkFieldType(fieldStr);
+                beanStr+="&nbsp;&nbsp;&nbsp;&nbsp;private "+fieldType+" "+trim(fieldStr)+";<br/>";
             }
-            var fieldType=checkFieldType(fieldStr);
-            beanStr+="&nbsp;&nbsp;&nbsp;&nbsp;private "+fieldType+" "+trim(fieldStr)+";<br/>";
+            beanStr+="}";
+            $("#resultBean").html(beanStr);
+        }else{
+            $("#resultBean").html("");
         }
-        beanStr+="}";
-        $("#resultBean").html(beanStr);
         $("#resultBean").show();
         console.log("生成的实体类："+beanStr);
     }
@@ -681,7 +748,7 @@ layui.use(['layer', 'element'],function() {
     function generMethod(mapKeysStr,voidFlag){
         var selectId=$("#sqlId").val();
         var javaParamName=$("#sqlParaName").val();
-        var methodContent=getResultClassName(voidFlag)+" "+selectId+"(";
+        var methodContent=getCallbackClassName(voidFlag)+" "+selectId+"(";
         if(javaParamName){
             var nameJson=getParamName();
             var objName=nameJson.objName;
@@ -966,17 +1033,17 @@ layui.use(['layer', 'element'],function() {
         return sqlParamName;
     }
 
-
     /**
-     * 结果集类的类名生成
-     * @returns {string}
+     * 调用方法的返回类名
+     * @param voidFlag
+     * @returns {*}
      */
-    var getResultClassName=function(voidFlag){
+    var getCallbackClassName=function(voidFlag){
         if(voidFlag){
-            $("#bean-div").html("");
+            $("#resultBean").html("");
             return "void";
         }
-        return "ResultBeanTemplate";
+        return getSqlReturnClass().className;
     }
 
     /**
@@ -1010,6 +1077,60 @@ layui.use(['layer', 'element'],function() {
             }
         }
         return paramVal+","+paramType;
+    }
+
+    /**
+     * SQL语句返回类型
+     */
+    function getSqlReturnClass(){
+        var sqlReturnClass=$("#sqlReturnClass").val();
+        var returnClass="";
+        var className="";
+        var packageClassName;
+        var isBasic=false;
+        var classType=sqlReturnClass.toLowerCase();
+        if(sqlReturnClass){
+            if(classType=="string"){
+                returnClass="java.lang.String";
+                isBasic=true;
+            }else if(classType=="long"){
+                returnClass="java.lang.Long";
+                isBasic=true;
+            }else if(classType=="integer"){
+                returnClass="java.lang.Integer";
+                isBasic=true;
+            }else if(classType=="localdate"){
+                returnClass="java.time.LocalDate";
+                isBasic=true;
+            }else{
+                if(classType.indexOf("com")>-1){
+                    returnClass=sqlReturnClass;
+                }else{
+                    if(classType.substring(classType.length-2)!="bo"){
+                        sqlReturnClass=sqlReturnClass+"BO";
+                    }
+                    if(classType.substring(0,1)!="."){
+                        sqlReturnClass="."+sqlReturnClass;
+                    }
+                    returnClass="com.hoolink.sdk.bo"+sqlReturnClass;
+                }
+            }
+        }else{
+            returnClass="ResultBeanTemplateBO";
+            className=returnClass;
+        }
+        packageClassName=returnClass;
+        var lastDotIndex=returnClass.lastIndexOf(".");
+        if(lastDotIndex>-1){
+            className=returnClass.substring(lastDotIndex+1);
+            className=className.substring(0,1).toUpperCase()+className.substring(1);
+            packageClassName=returnClass.substring(0,lastDotIndex+1)+className;
+        }
+        var returnClassJson={};
+        returnClassJson.className=className;
+        returnClassJson.packageClassName=packageClassName;
+        returnClassJson.isBasic=isBasic;
+        return returnClassJson;
     }
 
     //======================================================工具函数===================================================

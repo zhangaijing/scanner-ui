@@ -223,9 +223,11 @@
         <div style="margin-top:20px;margin-left:20px;font-size:16px">
             <div style="margin-bottom:15px">
                 <span>SQL语句ID：</span>
-                <span><input type="text" id="sqlId" style="width:300px" class="layui-input inline-input"/></span>
-                <span style="margin-left:35px">方法参数对象名：</span>
-                <span><input type="text" name="sqlParaName" id="sqlParaName" style="width:300px" class="layui-input inline-input"></span>
+                <span><input type="text" id="sqlId" style="width:240px" class="layui-input inline-input"/></span>
+                <span style="margin-left:35px">SQL参数的对象名：</span>
+                <span><input type="text" name="sqlParaName" id="sqlParaName" style="width:230px" class="layui-input inline-input"></span>
+                <span style="margin-left:35px">SQL返回的类名称：</span>
+                <span><input type="text" name="sqlParaName" id="sqlReturnClass" style="width:230px" class="layui-input inline-input"></span>
                 <span style="margin-left:40px"><input type="button" style="margin-left:20px" value="SQL转Mybatis" id="toMybatisBtn"  class="layui-btn"/></span>
             </div>
             <div class="layui-row">
@@ -244,11 +246,11 @@
             <div class="layui-row">
                 <div class="layui-col-md6 left-area">
                     <div style="font-size:18px">WHERE条件实体类：</div>
-                    <div type="text" id="whereBean" class="bean-div">dd</div>
+                    <div type="text" id="whereBean" class="bean-div">nil</div>
                 </div>
                 <div  class="layui-col-md5 right-area">
                     <div style="font-size:18px">结果集实体类：</div>
-                    <div id="resultBean" class="bean-div">dd</div>
+                    <div id="resultBean" class="bean-div">nil</div>
                 </div>
             </div>
             <div class="layui-row" style="margin-top:20px;margin-bottom:10px">
