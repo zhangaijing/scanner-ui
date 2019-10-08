@@ -13,6 +13,7 @@
 >
 > 点击【SQL转Mybatis】按钮直接转换为：
 >
+> ### 转换后的Mybatis语句：
 > &lt;select id=&quot;getProjectById&quot; resultType=&quot;com.sdk.bo.ProjectBO&quot;&gt;
 select a from table where 1=1 AND  b  in (
 select b from dtable where 1=1
