@@ -7,11 +7,16 @@ layui.use(['layer', 'element'],function() {
     var replaceDateJson={};
     //in还原json
     var restoreInJson={};
+    //带#还原json
+    var restoreNoChangeJson={};
     var dateIdentStr="@@@";
     var datePlaceholder="use@date@placeholder";
     var mapKeys;
     var betweenAlias="BETWAND";
     var inPlaceholder="in@&@";
+    var noChangePlaceholder="nochange@&@";
+    var noChangeBaseCode=97;
+    
     /**
      * SQL转Mybatis按钮单击事件
      */
@@ -27,7 +32,9 @@ layui.use(['layer', 'element'],function() {
         str=replaceEnabled(str);
         replaceDateJson={};
         restoreInJson={};
+        restoreNoChangeJson={};
         str=replaceDate(str);
+        str=replaceNoChange(str);
         //字符串替换为'?'
         var reg = /\'(.*?)\'/g;
         var result=str.match(reg);
@@ -87,6 +94,7 @@ layui.use(['layer', 'element'],function() {
         }
         var mybatisSqlStr=buildMybatisMainSql(str);
         mybatisSqlStr=inRestore(mybatisSqlStr);
+        mybatisSqlStr=noChangeRestore(mybatisSqlStr);
         mybatisSqlStr=sqlBeforeFlagStr+" id=\""+$("#sqlId").val()+"\""+resultTypeStr+">\n"+mybatisSqlStr+"\n"+sqlAfterFlagStr;
         $("#mybatisText").val(mybatisSqlStr);
         generWhereBean(mapKeys);
@@ -155,6 +163,41 @@ layui.use(['layer', 'element'],function() {
         if(sqlStr=="")
             sqlStr=whereStr;
         sqlStr=dateRestore(sqlStr);
+        return sqlStr;
+    }
+
+    /**
+     * 条件中带#不进行替换特殊处理
+     * @param sqlStr
+     */
+    function replaceNoChange(sqlStr){
+        noChangeBaseCode=97;
+        var reg = /#\'(.*?)\'/g;
+        sqlStr=noChangeOption(sqlStr,reg);
+        reg=/#\d+(\.\d+)?/g;
+        sqlStr=noChangeOption(sqlStr,reg);
+        reg=/#\s*\((.*?)\)/ig;
+        sqlStr=noChangeOption(sqlStr,reg);
+        return sqlStr;
+    }
+
+    /**
+     * 带#不进行替换处理函数
+     * @param sqlStr
+     * @param reg
+     * @param code
+     */
+    function noChangeOption(sqlStr,reg){
+        var result=sqlStr.match(reg);
+        if(result){
+            for(var i in result){
+                var matchStr=result[i];
+                var codeChar=String.fromCharCode(noChangeBaseCode++);
+                var noChangeKey=noChangePlaceholder.replace("&",codeChar);
+                restoreNoChangeJson[noChangeKey]=matchStr;
+                sqlStr=sqlStr.replace(matchStr,noChangeKey);
+            }
+        }
         return sqlStr;
     }
 
@@ -371,6 +414,28 @@ layui.use(['layer', 'element'],function() {
                 replaceSqlStr=restoreInJson[matchReplaceStr];
                 if(replaceSqlStr){
                     sqlStr=sqlStr.replace(matchReplaceStr," in (\n"+replaceSqlStr+"\n)");
+                }
+            }
+        }
+        return sqlStr;
+    }
+
+    /**
+     * 带#的替换为原来的值
+     * @param sqlStr
+     */
+    function noChangeRestore(sqlStr){
+        var reg=/nochange@(.*?)@/ig;
+        var result=sqlStr.match(reg);
+        if(result){
+            var matchReplaceStr;
+            var replaceSqlStr;
+            for(var i in result){
+                matchReplaceStr=result[i];
+                replaceSqlStr=restoreNoChangeJson[matchReplaceStr];
+                if(replaceSqlStr){
+                    var replaceFieldVal=replaceSqlStr.substring(1);
+                    sqlStr=sqlStr.replace(matchReplaceStr,replaceFieldVal);
                 }
             }
         }
