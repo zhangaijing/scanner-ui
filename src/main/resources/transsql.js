@@ -341,6 +341,7 @@ layui.use(['layer', 'element'],function() {
             for(var i in result){
                 matchStr=result[i];
                 matchStr=moreBrackets(matchStr,SqlStr);
+                matchStr=trim(matchStr);
                 var inSelectreg=/select/ig;
                 var inSelectIndex=matchStr.search(inSelectreg);
                 var baseCode=97;
