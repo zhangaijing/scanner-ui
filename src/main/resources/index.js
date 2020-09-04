@@ -318,7 +318,7 @@ layui.use(['layer','element'], function(){
         var storeServicePort=window.localStorage.getItem("servicePort");
         if(storeIp && storeServicePort){
             var jsonData={};
-            jsonData.ip="192.168.1."+storeIp;
+            jsonData.ip="192.168.201."+storeIp;
             jsonData.port=storeServicePort;
             return jsonData;
         }else{
