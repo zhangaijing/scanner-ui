@@ -5,5 +5,6 @@ var serviceConfig={
     "manage-product":"8082",
     "manage-website-jr":"8088",
     "manage-project":"8083",
-    "manage-product-project":"8085"
+    "manage-product-project":"8085",
+    "manage-opoc":"9107"
 }

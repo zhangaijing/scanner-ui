@@ -189,6 +189,51 @@ layui.use(['layer','element'], function(){
     });
 
     /**
+     * 接口URL复制到剪贴板
+     */
+    $(document).ready(function(){
+        var clipboard = new ClipboardJS(".url-btn",{
+            text: function(trigger) {
+                var $parent=$(trigger).parents(".url-content");
+                var $paramContainer=$parent.find("#methodfullurlcontainer");
+                var paramContext=$paramContainer.text();
+                return paramContext;
+            }
+        });
+        clipboard.on('success', function (e) {
+            console.log(e);
+            layer.msg("URL复制成功");
+        });
+        clipboard.on('error', function (e) {
+            console.log(e);
+            layer.error("URL复制失败");
+        });
+    });
+
+    /**
+     * 接口注释复制到剪贴板
+     */
+    $(document).ready(function(){
+        var clipboard = new ClipboardJS(".remark-btn",{
+            text: function(trigger) {
+                var $parent=$(trigger).parents(".inline-content");
+                var $parentPrev=$parent.prev();
+                var $paramContainer=$parentPrev.find("#methodcommentcontainer");
+                var paramContext=$paramContainer.text();
+                return paramContext;
+            }
+        });
+        clipboard.on('success', function (e) {
+            console.log(e);
+            layer.msg("注释复制成功");
+        });
+        clipboard.on('error', function (e) {
+            console.log(e);
+            layer.error("注释复制失败");
+        });
+    });
+
+    /**
      * 请求参数复制到剪贴板
      */
     $(document).ready(function(){
