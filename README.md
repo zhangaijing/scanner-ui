@@ -14,7 +14,7 @@
 > 点击【SQL转Mybatis】按钮直接转换为：
 >
 > ### 转换后的Mybatis语句：
-> ```&lt;select id=&quot;getProjectById&quot; resultType=&quot;com.sdk.bo.ProjectBO&quot;&gt;
+> &lt;select id=&quot;getProjectById&quot; resultType=&quot;com.sdk.bo.ProjectBO&quot;&gt;
 select a from table where 1=1 AND  b  in (
 select b from dtable where 1=1
 &lt;if test=&quot;c!=null and c!=&#x27;&#x27;&quot;&gt;
@@ -31,7 +31,7 @@ select b from dtable where 1=1
 &lt;/if&gt;
 ) and dd=12313
 &lt;/select&gt;
-> ```
+> 
 
 ## Mybatis转Sql
 > ## 使用事例
