@@ -30,8 +30,8 @@ select b from dtable where 1=1
 	&lt;/foreach&gt;
 &lt;/if&gt;
 ) and dd=12313
-&lt;/select&gt;```
-> 
+&lt;/select&gt;
+> ```
 
 ## Mybatis转Sql
 > ## 使用事例
